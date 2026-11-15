@@ -1,3 +1,4 @@
+
 # ElderCare — Smart Elderly Care & Medication Management Platform
 
 > An interconnected, proactive healthcare ecosystem connecting elderly individuals, family members, caregivers, and attending physicians with secure passcode-based access, proactive email alerts, visual pillbox scheduling, clinical doctor portal, emergency ambulance tracking, and senior-first accessibility.
@@ -98,3 +99,6 @@ For persistent sessions across restarts or multiple server workers, set `SECRET_
    python test_suite.py
    ```
    *(All 19 tests pass with 100% success against a fresh-schema test database.)*
+=======
+# my-cata-project
+>>>>>>> 09a8bedec0ce0b809e009a2b31ae97724d5f6957
