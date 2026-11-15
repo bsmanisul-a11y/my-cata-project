@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+
+{% block title %}Medications & Schedules — ElderCare Platform{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header-row">
+    <div>
+      <span class="subheading">Healthcare Prescriptions</span>
+      <h1 class="page-title"><i class="fa-solid fa-pills text-blue"></i> Medication Management</h1>
+      <p class="text-muted">Manage active medications, dosing schedules, refill inventory, and review clinical safety.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary" onclick="openAddMedModal()">
+        <i class="fa-solid fa-plus"></i> Add New Medication
+      </button>
+    </div>
+  </div>
+
+  <!-- CLINICAL SAFETY ALERTS -->
+  {% if safety_alerts %}
+  <div class="safety-alerts-wrapper animate-slide-down">
+    <div class="section-badge-danger"><i class="fa-solid fa-shield-virus"></i> Clinical Interaction Engine Alert</div>
+    {% for alert in safety_alerts %}
+      <div class="alert-box alert-{{ alert.severity }}">
+        <div class="alert-box-icon">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div class="alert-box-content">
+          <h4>{{ alert.title }}</h4>
+          <p>{{ alert.description }}</p>
+          <div class="alert-action-tip">
+            <strong>Clinical Advice:</strong> {{ alert.action }}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ACTIVE MEDICATIONS LIST -->
+  <div class="section-title-bar" style="margin-top: 24px;">
+    <h2><i class="fa-solid fa-prescription"></i> Active Prescriptions ({{ meds|length }})</h2>
+  </div>
+
+  <div class="meds-card-grid">
+    {% for med in meds %}
+    <div class="med-management-card">
+      <div class="med-card-header">
+        <div class="med-header-left">
+          <span class="pill-type-avatar"><i class="fa-solid fa-tablets"></i></span>
+          <div>
+            <h3 class="med-title">{{ med.name }}</h3>
+            <span class="badge-dosage">{{ med.dosage }} &bull; {{ med.form }}</span>
+          </div>
+        </div>
+        <span class="badge-pill-visual">{{ med.color_shape }}</span>
+      </div>
+
+      <div class="med-card-body">
+        <div class="med-info-row">
+          <span class="info-label"><i class="fa-solid fa-bullseye"></i> Purpose:</span>
+          <span class="info-val">{{ med.purpose or 'Not specified' }}</span>
+        </div>
+
+        <div class="med-info-row">
+          <span class="info-label"><i class="fa-solid fa-circle-info"></i> Instructions:</span>
+          <span class="info-val">{{ med.instructions or 'Take as prescribed' }}</span>
+        </div>
+
+        <div class="med-info-row">
+          <span class="info-label"><i class="fa-solid fa-user-doctor"></i> Prescribed By:</span>
+          <span class="info-val">{{ med.prescribing_doctor or 'Primary Physician' }}</span>
+        </div>
+
+        <!-- Schedule Times -->
+        <div class="med-schedule-slots">
+          <span class="info-label"><i class="fa-regular fa-clock"></i> Daily Times:</span>
+          <div class="schedule-slot-badges">
+            {% for s in med.schedules %}
+              <span class="slot-badge">
+                <strong>{{ s.time_slot }}:</strong> {{ s.scheduled_time }}
+              </span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Stock & Refill Tracker -->
+        <div class="stock-refill-box {% if med.current_stock <= med.refill_threshold %}stock-critical{% endif %}">
+          <div class="stock-header">
+            <span><strong>Supply Inventory:</strong> {{ med.current_stock }} doses left</span>
+            {% if med.current_stock <= med.refill_threshold %}
+              <span class="badge-refill-alert"><i class="fa-solid fa-bell"></i> Refill Needed</span>
+            {% else %}
+              <span class="badge-stock-ok"><i class="fa-solid fa-check"></i> Stock OK</span>
+            {% endif %}
+          </div>
+          <div class="stock-progress">
+            {% set stock_pct = [(med.current_stock / 30.0 * 100)|int, 100]|min %}
+            <div class="stock-fill {% if med.current_stock <= med.refill_threshold %}fill-red{% endif %}" style="width: {{ stock_pct }}%;"></div>
+          </div>
+        </div>
+
+        {% if med.current_stock <= med.refill_threshold %}
+        <div class="medicine-delivery-request">
+          <strong><i class="fa-solid fa-truck-medical"></i> Supply is low or empty</strong>
+          <span>Request a delivery from St. Jude Hospital Pharmacy.</span>
+          <form action="{{ url_for('request_medicine_delivery', med_id=med.id) }}" method="POST">
+            <label for="delivery-quantity-{{ med.id }}">Quantity</label>
+            <select id="delivery-quantity-{{ med.id }}" name="quantity" class="form-control">
+              <option value="30">30 doses</option>
+              <option value="60">60 doses</option>
+              <option value="90">90 doses</option>
+            </select>
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-truck-fast"></i> Request Delivery
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="med-card-footer">
+        <!-- Open Refill Modal -->
+        <button type="button" class="btn btn-sm-primary" onclick="openRefillModal({{ med.id }}, '{{ med.name }}', {{ med.current_stock }})">
+          <i class="fa-solid fa-box-archive"></i> Refill Supply
+        </button>
+
+        <!-- Discontinue / Delete Form -->
+        <form action="{{ url_for('delete_medication', med_id=med.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to discontinue {{ med.name }}?');">
+          <button type="submit" class="btn btn-sm-danger" title="Discontinue medication">
+            <i class="fa-solid fa-trash-can"></i> Discontinue
+          </button>
+        </form>
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if delivery_orders %}
+  <section class="card-panel medicine-delivery-history">
+    <div class="panel-header">
+      <div>
+        <h3><i class="fa-solid fa-truck-fast"></i> Medicine Deliveries</h3>
+        <p class="text-muted">Track recent medicine orders from the hospital pharmacy.</p>
+      </div>
+    </div>
+    <div class="panel-body">
+      {% for order in delivery_orders %}
+      <div class="medicine-delivery-history-row">
+        <div>
+          <strong>{{ order.medication_name }} — {{ order.quantity }} doses</strong>
+          <span>{{ order.hospital_name }} ·
+            {% if order.status == 'requested' %}Check medicine before payment
+            {% elif order.status == 'checked' %}Awaiting payment
+            {% elif order.status == 'on_the_way' %}Out for delivery
+            {% elif order.status == 'arrived' %}Arrived
+            {% else %}{{ order.status|replace('_', ' ')|title }}{% endif %}
+          </span>
+        </div>
+        <a class="btn btn-outline" href="{{ url_for('medicine_delivery', order_id=order.id) }}">
+          Track Order
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ADHERENCE HISTORY LOG -->
+  <div class="card-panel" style="margin-top: 36px;">
+    <div class="panel-header">
+      <div>
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Medication Adherence Logs</h3>
+        <p class="text-muted">Real-time verification history of doses taken, snoozed, or missed.</p>
+      </div>
+      <div class="stat-pill-group">
+        <span class="stat-pill">30-Day Rate: <strong>{{ stats.rate_30d }}%</strong></span>
+        <span class="stat-pill">Doses Taken: <strong>{{ stats.taken_30d }}</strong></span>
+      </div>
+    </div>
+    <div class="panel-body no-padding">
+      <div class="table-responsive">
+        <table class="table-modern">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Medication</th>
+              <th>Status</th>
+              <th>Logged At</th>
+              <th>Confirmed By</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in recent_logs %}
+            <tr>
+              <td><strong>{{ log.scheduled_date }}</strong></td>
+              <td>{{ log.scheduled_time }}</td>
+              <td><strong>{{ log.medication.name }}</strong> ({{ log.medication.dosage }})</td>
+              <td>
+                <span class="status-chip chip-{{ log.status }}">
+                  {% if log.status == 'taken' %}<i class="fa-solid fa-check"></i> Taken
+                  {% elif log.status == 'skipped' %}<i class="fa-solid fa-xmark"></i> Skipped
+                  {% elif log.status == 'snoozed' %}<i class="fa-solid fa-bell"></i> Snoozed
+                  {% elif log.status == 'missed' %}<i class="fa-solid fa-triangle-exclamation"></i> Missed
+                  {% else %}<i class="fa-solid fa-clock"></i> Pending{% endif %}
+                </span>
+              </td>
+              <td>{{ log.logged_at.strftime('%Y-%m-%d %H:%M') if log.logged_at else '-' }}</td>
+              <td>{{ log.logged_by_name or 'Senior' }}</td>
+              <td>{{ log.notes or '-' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ADD MEDICATION MODAL -->
+<div class="modal-backdrop" id="addMedModal" style="display:none;">
+  <div class="modal-card modal-lg animate-scale-up">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-plus-circle text-blue"></i> Add New Medication</h3>
+      <button class="close-btn" onclick="closeAddMedModal()">&times;</button>
+    </div>
+    
+    <form action="{{ url_for('medications') }}" method="POST">
+      <input type="hidden" name="action" value="add_medication">
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="name">Medication Name *</label>
+          <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Metformin, Lisinopril, Amlodipine" required>
+        </div>
+
+        <div class="form-group">
+          <label for="dosage">Prescribed Dosage *</label>
+          <input type="text" id="dosage" name="dosage" class="form-control" placeholder="e.g. 500 mg, 10 mg, 1 tablet" required>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="form">Form</label>
+          <select id="form" name="form" class="form-control">
+            <option value="Pill">Pill / Tablet</option>
+            <option value="Capsule">Capsule</option>
+            <option value="Liquid">Liquid Syrup</option>
+            <option value="Injection">Injection (e.g. Insulin)</option>
+            <option value="Inhaler">Inhaler</option>
+            <option value="Drops">Eye / Ear Drops</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="color_shape">Visual Appearance (Color & Shape) *</label>
+          <input type="text" id="color_shape" name="color_shape" class="form-control" placeholder="e.g. White Oval, Pink Round, Blue Capsule" value="White Round" required>
+          <small class="form-hint">Helps seniors identify the pill visually without reading fine print.</small>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="purpose">Therapeutic Purpose</label>
+          <input type="text" id="purpose" name="purpose" class="form-control" placeholder="e.g. High Blood Pressure, Type 2 Diabetes, Pain Relief">
+        </div>
+
+        <div class="form-group">
+          <label for="prescribing_doctor">Prescribing Physician</label>
+          <input type="text" id="prescribing_doctor" name="prescribing_doctor" class="form-control" placeholder="e.g. Dr. Robert Evans">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="instructions">Instructions & Timing Notes</label>
+        <input type="text" id="instructions" name="instructions" class="form-control" placeholder="e.g. Take with breakfast. Drink plenty of water.">
+      </div>
+
+      <!-- Schedule Time Slots Selection -->
+      <div class="form-group">
+        <label>Daily Administration Times (Select all that apply):</label>
+        <div class="time-slot-checkbox-grid">
+          
+          <div class="time-slot-picker">
+            <label class="checkbox-label">
+              <input type="checkbox" name="time_slots" value="Morning" checked onchange="toggleTimeInput('morning')">
+              <span>🌅 Morning</span>
+            </label>
+            <input type="time" name="time_morning" id="time_morning" class="form-control time-input" value="08:00">
+          </div>
+
+          <div class="time-slot-picker">
+            <label class="checkbox-label">
+              <input type="checkbox" name="time_slots" value="Afternoon" onchange="toggleTimeInput('afternoon')">
+              <span>☀️ Afternoon</span>
+            </label>
+            <input type="time" name="time_afternoon" id="time_afternoon" class="form-control time-input" value="13:00" disabled>
+          </div>
+
+          <div class="time-slot-picker">
+            <label class="checkbox-label">
+              <input type="checkbox" name="time_slots" value="Evening" onchange="toggleTimeInput('evening')">
+              <span>🌆 Evening</span>
+            </label>
+            <input type="time" name="time_evening" id="time_evening" class="form-control time-input" value="19:00" disabled>
+          </div>
+
+          <div class="time-slot-picker">
+            <label class="checkbox-label">
+              <input type="checkbox" name="time_slots" value="Bedtime" onchange="toggleTimeInput('bedtime')">
+              <span>🌙 Bedtime</span>
+            </label>
+            <input type="time" name="time_bedtime" id="time_bedtime" class="form-control time-input" value="21:30" disabled>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="stock">Initial Stock (Pills Count)</label>
+          <input type="number" id="stock" name="stock" class="form-control" value="30" min="1">
+        </div>
+
+        <div class="form-group">
+          <label for="refill_threshold">Refill Alert Threshold (Days/Pills)</label>
+          <input type="number" id="refill_threshold" name="refill_threshold" class="form-control" value="7" min="1">
+          <small class="form-hint">Triggers automated email notification when supply falls to this level.</small>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeAddMedModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Medication & Activate Schedule</button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- REFILL MODAL (TYPE OR CHOOSE PRESET) -->
+<div class="modal-backdrop" id="refillModal" style="display:none;">
+  <div class="modal-card animate-scale-up">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-box-archive text-blue"></i> Refill Medication Supply</h3>
+      <button class="close-btn" onclick="closeRefillModal()">&times;</button>
+    </div>
+    <form action="{{ url_for('medications') }}" method="POST">
+      <input type="hidden" name="action" value="refill_stock">
+      <input type="hidden" name="med_id" id="refillMedId">
+
+      <p style="font-size: 1.05rem; margin-bottom: 16px;">
+        Refilling: <strong id="refillMedName" class="text-blue"></strong><br>
+        <span class="text-muted">Current Stock: <strong id="refillCurrentStock"></strong> doses</span>
+      </p>
+
+      <div class="form-group">
+        <label for="refillInputAmount">Type Custom Quantity to Add (Pills):</label>
+        <input type="number" name="refill_amount" id="refillInputAmount" class="form-control" value="30" min="1" max="500" required>
+        <small class="form-hint">Type any custom number above or tap one of the quick preset buttons below:</small>
+      </div>
+
+      <div class="form-group">
+        <label>Quick Quantity Selection:</label>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-sm-outline" onclick="setRefillAmount(15)">+15 Pills</button>
+          <button type="button" class="btn btn-sm-outline" onclick="setRefillAmount(30)">+30 Pills (1 Mo)</button>
+          <button type="button" class="btn btn-sm-outline" onclick="setRefillAmount(60)">+60 Pills (2 Mo)</button>
+          <button type="button" class="btn btn-sm-outline" onclick="setRefillAmount(90)">+90 Pills (3 Mo)</button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeRefillModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Refill Stock</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openRefillModal(id, name, currentStock) {
+    document.getElementById('refillMedId').value = id;
+    document.getElementById('refillMedName').innerText = name;
+    document.getElementById('refillCurrentStock').innerText = currentStock;
+    document.getElementById('refillInputAmount').value = 30;
+    document.getElementById('refillModal').style.display = 'flex';
+  }
+  function closeRefillModal() {
+    document.getElementById('refillModal').style.display = 'none';
+  }
+  function setRefillAmount(qty) {
+    document.getElementById('refillInputAmount').value = qty;
+  }
+  function openAddMedModal() {
+    document.getElementById('addMedModal').style.display = 'flex';
+  }
+  function closeAddMedModal() {
+    document.getElementById('addMedModal').style.display = 'none';
+  }
+  function toggleTimeInput(slot) {
+    const input = document.getElementById('time_' + slot);
+    if (input) {
+      input.disabled = !input.disabled;
+    }
+  }
+</script>
+{% endblock %}

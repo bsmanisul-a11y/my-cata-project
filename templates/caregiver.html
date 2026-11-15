@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}Care Circle & Caregiver Hub — ElderCare Platform{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header-row">
+    <div>
+      <span class="subheading">Collaborative Care Ecosystem</span>
+      <h1 class="page-title"><i class="fa-solid fa-users-rays text-blue"></i> Care Circle & Caregiver Hub</h1>
+      <p class="text-muted">Passcode sharing, family coordination, handoff notes, and proactive email notification audit.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary" onclick="openAddMemberModal()">
+        <i class="fa-solid fa-user-plus"></i> Add Care Circle Member
+      </button>
+    </div>
+  </div>
+
+  <!-- TOP PASSCODE & CARE PROFILE BANNER -->
+  <div class="care-circle-banner">
+    <div class="circle-banner-left">
+      <div class="circle-senior-avatar">{{ profile.full_name[:2]|upper }}</div>
+      <div>
+        <h2>{{ profile.full_name }} (Age {{ profile.age or 'N/A' }})</h2>
+        <p class="text-sm">
+          <strong>Blood Group:</strong> {{ profile.blood_group }} |
+          <strong>Allergies:</strong> {{ profile.allergies }} |
+          <strong>Emergency Contact:</strong> {{ profile.emergency_contact_name }} ({{ profile.emergency_contact_phone }})
+        </p>
+      </div>
+    </div>
+
+    <!-- 6-DIGIT PASSCODE SHARING BOX -->
+    <div class="passcode-share-card">
+      <div class="passcode-card-label"><i class="fa-solid fa-key"></i> Family Access Passcode</div>
+      <div class="passcode-display-value" id="passcodeText">{{ profile.family_passcode }}</div>
+      <div class="passcode-actions">
+        <button type="button" class="btn-copy-code" onclick="copyPasscode()">
+          <i class="fa-regular fa-copy"></i> Copy Code
+        </button>
+        <span class="copy-feedback" id="copyMsg">Copied!</span>
+      </div>
+      <small class="passcode-note">Share this 6-character code with family members & caretakers for instant access.</small>
+    </div>
+  </div>
+
+  <!-- TWO-COLUMN GRID: CARE CIRCLE MEMBERS & CAREGIVER HANDOFF NOTES -->
+  <div class="dashboard-bottom-grid" style="margin-top: 28px;">
+    
+    <!-- 1. CARE CIRCLE MEMBERS -->
+    <div class="card-panel">
+      <div class="panel-header">
+        <h3><i class="fa-solid fa-people-group text-blue"></i> Care Circle Team ({{ members|length }})</h3>
+        <button class="btn btn-sm-outline" onclick="openAddMemberModal()"><i class="fa-solid fa-plus"></i> Add</button>
+      </div>
+      <div class="panel-body">
+        <div class="members-list">
+          {% for m in members %}
+          <div class="member-item">
+            <div class="member-avatar">{{ m.user.name[:1] }}</div>
+            <div class="member-info">
+              <h4>{{ m.user.name }} {% if m.is_primary %}<span class="badge-primary-caregiver">Primary</span>{% endif %}</h4>
+              <p class="text-muted"><i class="fa-solid fa-tag"></i> {{ m.relation }} &bull; {{ m.user.email }}</p>
+            </div>
+            <div class="member-alerts-badge">
+              {% if m.receive_email_alerts %}
+                <span class="badge-tag tag-green" title="Receives missed dose & appointment emails"><i class="fa-solid fa-envelope-circle-check"></i> Email Alerts ON</span>
+              {% else %}
+                <span class="badge-tag tag-muted">Alerts OFF</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. CAREGIVER HANDOFF NOTES -->
+    <div class="card-panel">
+      <div class="panel-header">
+        <h3><i class="fa-solid fa-clipboard-user text-green"></i> Caregiver Handoff Board</h3>
+        <button class="btn btn-sm-primary" onclick="openAddNoteModal()"><i class="fa-solid fa-pen"></i> Post Note</button>
+      </div>
+      <div class="panel-body">
+        {% if notes %}
+          <div class="notes-timeline">
+            {% for note in notes %}
+            <div class="timeline-note-item">
+              <div class="note-meta">
+                <strong><i class="fa-solid fa-user-pen"></i> {{ note.author_name }}</strong>
+                <span class="badge-category">{{ note.category }}</span>
+                <span class="note-date">{{ note.created_at.strftime('%b %d, %H:%M') }}</span>
+              </div>
+              <p class="note-text">{{ note.content }}</p>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted text-center" style="padding: 30px 0;">No handover notes yet. Post updates on meals, mood, or doctor visits!</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 3. PROACTIVE EMAIL NOTIFICATIONS & AUDIT CENTER -->
+  <div class="card-panel" style="margin-top: 36px;">
+    <div class="panel-header">
+      <div>
+        <h3><i class="fa-solid fa-envelope-circle-check text-blue"></i> Proactive Email Notification Center</h3>
+        <p class="text-muted">Audit log of automated email alerts for missed medications, upcoming doses, and appointments.</p>
+      </div>
+      <div class="header-actions">
+        <!-- Manual Scan Reminders Button -->
+        <button type="button" class="btn btn-outline" onclick="runProactiveCheckNow()">
+          <i class="fa-solid fa-arrows-rotate"></i> Run Proactive Check Now
+        </button>
+        <!-- Test Email Dispatcher Button -->
+        <button type="button" class="btn btn-primary" onclick="openTestEmailModal()">
+          <i class="fa-solid fa-paper-plane"></i> Send Test Alert Email
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-body no-padding">
+      <div class="smtp-status-banner">
+        {% if smtp_configured %}
+          <div class="smtp-badge-green"><i class="fa-solid fa-check-double"></i> Live SMTP Mail Server Connected</div>
+        {% else %}
+          <div class="smtp-badge-info"><i class="fa-solid fa-flask"></i> Development Sandbox Mode Active (Emails are generated and viewable in full HTML below)</div>
+        {% endif %}
+      </div>
+
+      <div class="table-responsive">
+        <table class="table-modern">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Recipient</th>
+              <th>Alert Type</th>
+              <th>Subject Line</th>
+              <th>Dispatch Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for notif in notifications %}
+            <tr>
+              <td><strong>{{ notif.sent_at.strftime('%Y-%m-%d %H:%M') }}</strong></td>
+              <td>{{ notif.recipient_name }} <br><small class="text-muted">{{ notif.recipient_email }}</small></td>
+              <td>
+                <span class="badge-notif badge-{{ notif.notification_type }}">
+                  {{ notif.notification_type|replace('_', ' ')|title }}
+                </span>
+              </td>
+              <td>{{ notif.subject }}</td>
+              <td>
+                <span class="status-chip chip-{{ 'taken' if 'Sent' in notif.status else 'snoozed' }}">
+                  {{ notif.status }}
+                </span>
+              </td>
+              <td>
+                <button type="button" class="btn btn-xs-outline" onclick="previewEmailModal({{ notif.id }})">
+                  <i class="fa-regular fa-eye"></i> View Email
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not notifications %}
+            <tr>
+              <td colspan="6" class="text-center text-muted" style="padding: 24px;">No email alerts logged yet. Use the 'Send Test Alert Email' button above to trigger one!</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ADD MEMBER MODAL -->
+<div class="modal-backdrop" id="addMemberModal" style="display:none;">
+  <div class="modal-card animate-scale-up">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-user-plus text-blue"></i> Add Care Circle Member</h3>
+      <button class="close-btn" onclick="closeAddMemberModal()">&times;</button>
+    </div>
+    <form action="{{ url_for('caregiver') }}" method="POST">
+      <input type="hidden" name="action" value="add_member">
+
+      <div class="form-group">
+        <label for="member_name">Full Name *</label>
+        <input type="text" id="member_name" name="name" class="form-control" placeholder="e.g. Sarah Jenkins" required>
+      </div>
+
+      <div class="form-group">
+        <label for="member_email">Email Address (for Proactive Alerts) *</label>
+        <input type="email" id="member_email" name="email" class="form-control" placeholder="e.g. sarah.jenkins@example.com" required>
+      </div>
+
+      <div class="form-group">
+        <label for="member_relation">Relationship to {{ profile.full_name }}</label>
+        <select id="member_relation" name="relation" class="form-control">
+          <option value="Daughter">Daughter</option>
+          <option value="Son">Son</option>
+          <option value="Spouse">Spouse</option>
+          <option value="Visiting Nurse">Visiting Nurse / Caretaker</option>
+          <option value="Grandchild">Grandchild</option>
+          <option value="Primary Physician">Primary Physician</option>
+          <option value="Relative / Friend">Relative / Friend</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeAddMemberModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add to Care Circle</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- POST CAREGIVER NOTE MODAL -->
+<div class="modal-backdrop" id="addNoteModal" style="display:none;">
+  <div class="modal-card animate-scale-up">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-pen-to-square text-green"></i> Post Caregiver Handoff Note</h3>
+      <button class="close-btn" onclick="closeAddNoteModal()">&times;</button>
+    </div>
+    <form action="{{ url_for('caregiver') }}" method="POST">
+      <input type="hidden" name="action" value="add_note">
+
+      <div class="form-group">
+        <label for="category">Category</label>
+        <select id="category" name="category" class="form-control">
+          <option value="Routine">Routine & Daily Care</option>
+          <option value="Diet">Meals & Hydration</option>
+          <option value="Doctor Update">Doctor Consultation / Rx Changes</option>
+          <option value="Behavior">Mood & Energy Observation</option>
+          <option value="General" selected>General Note</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="content">Note Content *</label>
+        <textarea id="content" name="content" class="form-control" rows="4" placeholder="e.g. Eleanor took morning medicines on time with oatmeal. Drank 3 glasses of water. In cheerful spirits." required></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeAddNoteModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Post Note</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- TEST EMAIL ALERT MODAL -->
+<div class="modal-backdrop" id="testEmailModal" style="display:none;">
+  <div class="modal-card animate-scale-up">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-paper-plane text-blue"></i> Trigger Test Proactive Alert Email</h3>
+      <button class="close-btn" onclick="closeTestEmailModal()">&times;</button>
+    </div>
+    <form action="{{ url_for('caregiver') }}" method="POST">
+      <input type="hidden" name="action" value="send_test_email">
+
+      <div class="form-group">
+        <label for="test_email">Recipient Email Address:</label>
+        <input type="email" id="test_email" name="test_email" class="form-control" value="{{ current_user.email if current_user else 'caregiver@example.com' }}" required>
+      </div>
+
+      <div class="form-group">
+        <label for="test_type">Alert Type to Simulate:</label>
+        <select id="test_type" name="test_type" class="form-control">
+          <option value="missed_dose">⚠️ Missed Medication Dose Alert (Overdue 30m)</option>
+          <option value="upcoming_dose">🔔 Upcoming Medication Dose Reminder</option>
+          <option value="appointment">🗓️ Medical Appointment Reminder (24h Notice)</option>
+          <option value="refill">📦 Low Pill Stock Refill Warning</option>
+          <option value="sos">🚨 Emergency SOS Critical Alert</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeTestEmailModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Dispatch Alert</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openAddMemberModal() { document.getElementById('addMemberModal').style.display = 'flex'; }
+  function closeAddMemberModal() { document.getElementById('addMemberModal').style.display = 'none'; }
+  function openAddNoteModal() { document.getElementById('addNoteModal').style.display = 'flex'; }
+  function closeAddNoteModal() { document.getElementById('addNoteModal').style.display = 'none'; }
+  function openTestEmailModal() { document.getElementById('testEmailModal').style.display = 'flex'; }
+  function closeTestEmailModal() { document.getElementById('testEmailModal').style.display = 'none'; }
+
+  function copyPasscode() {
+    const code = document.getElementById('passcodeText').innerText.trim();
+    navigator.clipboard.writeText(code).then(() => {
+      const msg = document.getElementById('copyMsg');
+      msg.style.display = 'inline';
+      setTimeout(() => { msg.style.display = 'none'; }, 2000);
+    });
+  }
+
+  function previewEmailModal(notifId) {
+    fetch('/api/notification-preview/' + notifId)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('previewSubject').innerHTML = '<i class="fa-solid fa-envelope-open-text"></i> ' + data.subject;
+        document.getElementById('previewRecipient').innerText = data.recipient;
+        document.getElementById('previewStatus').innerText = data.status;
+        document.getElementById('previewDate').innerText = data.sent_at;
+        
+        // Render in an iframe for isolation
+        const container = document.getElementById('previewFrameContainer');
+        container.innerHTML = '<iframe style="width:100%; height:450px; border:none; border-radius:8px;" srcdoc="' + data.html.replace(/"/g, '&quot;') + '"></iframe>';
+        
+        document.getElementById('notifPreviewModal').style.display = 'flex';
+      });
+  }
+
+  function closeNotifModal() {
+    document.getElementById('notifPreviewModal').style.display = 'none';
+  }
+</script>
+{% endblock %}

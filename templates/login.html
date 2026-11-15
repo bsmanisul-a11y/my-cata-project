@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — ElderCare Platform{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+  <div class="auth-card animate-scale-up">
+
+    <!-- Page Header -->
+    <div style="text-align:center; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
+      <div style="font-size: 2.4rem; color: var(--primary); margin-bottom: 8px;">
+        <i class="fa-solid fa-heart-pulse"></i>
+      </div>
+      <h1 style="font-size: 1.6rem; font-weight: 800; color: var(--navy); margin-bottom: 4px;">ElderCare Platform</h1>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">Sign in to access your secure healthcare dashboard</p>
+    </div>
+
+    <!-- Tab Switcher -->
+    <div class="auth-tab-group">
+      <button type="button" class="auth-tab active" id="tabPinBtn" onclick="switchLoginTab('pin')">
+        <i class="fa-solid fa-person-cane"></i> Senior PIN
+      </button>
+      <button type="button" class="auth-tab" id="tabEmailBtn" onclick="switchLoginTab('email')">
+        <i class="fa-solid fa-user-nurse"></i> Caregiver
+      </button>
+      <button type="button" class="auth-tab" id="tabDoctorBtn" onclick="switchLoginTab('doctor')">
+        <i class="fa-solid fa-user-doctor"></i> Doctor
+      </button>
+      <button type="button" class="auth-tab" id="tabPatientBtn" onclick="switchLoginTab('patient')">
+        <i class="fa-solid fa-bed-pulse"></i> Patient
+      </button>
+    </div>
+
+    <!-- =================== 1. SENIOR PIN FORM =================== -->
+    <div id="pinLoginForm" class="login-tab-content">
+      <div class="auth-icon-badge" style="background: rgba(37,99,235,0.1); color:#2563eb;">
+        <i class="fa-solid fa-hashtag"></i>
+      </div>
+      <h2>Senior Quick PIN Access</h2>
+      <p class="auth-subtitle">Enter your 4-digit Senior PIN to open your medication schedule and daily health routine instantly.</p>
+
+      <form action="{{ url_for('login') }}" method="POST" class="auth-form">
+        <input type="hidden" name="auth_type" value="pin">
+        <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+
+        <div class="form-group text-center">
+          <label for="senior_pin" class="passcode-label">4-Digit Senior PIN</label>
+          <div class="passcode-input-container">
+            <input
+              type="password"
+              id="senior_pin"
+              name="senior_pin"
+              maxlength="6"
+              class="form-control passcode-input"
+              placeholder="••••"
+              required
+              autofocus
+              autocomplete="off"
+              style="letter-spacing:8px; font-size:28px; text-align:center;"
+            >
+          </div>
+          <small class="form-hint">Use the PIN provided when your patient profile was created.</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary-full btn-lg">
+          <i class="fa-solid fa-door-open"></i> Open My Daily Routine
+        </button>
+      </form>
+    </div>
+
+    <!-- =================== 2. CAREGIVER / FAMILY EMAIL FORM =================== -->
+    <div id="emailLoginForm" class="login-tab-content" style="display:none;">
+      <div class="auth-icon-badge" style="background: rgba(16,185,129,0.1); color:#10b981;">
+        <i class="fa-solid fa-users-rays"></i>
+      </div>
+      <h2>Caregiver &amp; Family Login</h2>
+      <p class="auth-subtitle">Sign in to manage medication schedules, track adherence, and receive proactive alerts for your loved one.</p>
+
+      <form action="{{ url_for('login') }}" method="POST" class="auth-form">
+        <input type="hidden" name="auth_type" value="password">
+        <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+
+        <div class="form-group">
+          <label for="email"><i class="fa-solid fa-envelope"></i> Email Address</label>
+          <input type="email" id="email" name="email" class="form-control" placeholder="name@example.com" required autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
+          <div style="position:relative;">
+            <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+            <button type="button" onclick="togglePwd('password', this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1rem;" title="Show/Hide password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="demo-credential-hint">
+          <i class="fa-solid fa-circle-info"></i>
+          Use the email address and password associated with your caregiver account.
+        </div>
+
+        <button type="submit" class="btn btn-primary-full btn-lg" style="background-color:#10b981;">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In to Care Circle
+        </button>
+      </form>
+
+      <div style="margin-top:16px; text-align:center;">
+        <p class="text-muted text-sm">Have a family passcode instead?
+          <a href="{{ url_for('passcode_access') }}" style="color:#2563eb; font-weight:600;">Use Passcode Access</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- =================== 3. DOCTOR / ADMIN LOGIN =================== -->
+    <div id="doctorLoginForm" class="login-tab-content" style="display:none;">
+      <div class="auth-icon-badge" style="background:rgba(124,58,237,0.1); color:#7c3aed;">
+        <i class="fa-solid fa-user-doctor"></i>
+      </div>
+      <h2>Doctor &amp; Admin Portal</h2>
+      <p class="auth-subtitle">Physician-only access to update prescriptions, schedule visits, log clinical vitals, and upload diagnostic reports.</p>
+
+      <form action="{{ url_for('login') }}" method="POST" class="auth-form">
+        <input type="hidden" name="auth_type" value="password">
+
+        <div class="form-group">
+          <label for="doc_email"><i class="fa-solid fa-stethoscope"></i> Physician Email</label>
+          <input type="email" id="doc_email" name="email" class="form-control" placeholder="doctor@clinic.com" autocomplete="email" required>
+        </div>
+
+        <div class="form-group">
+          <label for="doc_password"><i class="fa-solid fa-lock"></i> Password</label>
+          <div style="position:relative;">
+            <input type="password" id="doc_password" name="password" class="form-control" placeholder="••••••••" required>
+            <button type="button" onclick="togglePwd('doc_password', this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1rem;" title="Show/Hide password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Doctor features summary -->
+        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:14px; margin-bottom:14px;">
+          <p style="font-weight:700; color:#6d28d9; margin-bottom:8px; font-size:0.9rem;"><i class="fa-solid fa-shield-halved"></i> Doctor Portal Capabilities:</p>
+          <ul style="margin:0; padding-left:18px; color:#5b21b6; font-size:0.85rem; line-height:1.7;">
+            <li>Update dosages &amp; prescribe new medications</li>
+            <li>Schedule next clinical visit &amp; notify patient</li>
+            <li>Upload lab reports, ECGs, prescriptions</li>
+            <li>Log in-clinic vitals (syncs to patient graph)</li>
+            <li>View all patients &amp; switch between profiles</li>
+          </ul>
+        </div>
+
+        <button type="submit" class="btn btn-primary-full btn-lg" style="background-color:#7c3aed;">
+          <i class="fa-solid fa-hospital-user"></i> Open Doctor Admin Portal
+        </button>
+      </form>
+    </div>
+
+    <!-- =================== 4. PATIENT LOGIN =================== -->
+    <div id="patientLoginForm" class="login-tab-content" style="display:none;">
+      <div class="auth-icon-badge" style="background:rgba(16,185,129,0.08); color:#059669;">
+        <i class="fa-solid fa-bed-pulse"></i>
+      </div>
+      <h2>Patient Login</h2>
+      <p class="auth-subtitle">Sign in with your registered patient email and password to access your personal health dashboard, medications, appointments, and medical reports.</p>
+
+      <form action="{{ url_for('login') }}" method="POST" class="auth-form">
+        <input type="hidden" name="auth_type" value="password">
+        <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+
+        <div class="form-group">
+          <label for="patient_email"><i class="fa-solid fa-envelope"></i> Patient Email Address</label>
+          <input type="email" id="patient_email" name="email" class="form-control" placeholder="patient@example.com" required autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label for="patient_password"><i class="fa-solid fa-lock"></i> Password</label>
+          <div style="position:relative;">
+            <input type="password" id="patient_password" name="password" class="form-control" placeholder="••••••••" required>
+            <button type="button" onclick="togglePwd('patient_password', this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1rem;" title="Show/Hide password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="demo-credential-hint" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0;">
+          <i class="fa-solid fa-circle-info"></i>
+          Use your registered patient credentials, or select the <strong>Senior PIN</strong> tab if a PIN was provided.
+        </div>
+
+        <button type="submit" class="btn btn-primary-full btn-lg" style="background-color:#059669;">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In as Patient
+        </button>
+      </form>
+
+      <div style="margin-top:18px; text-align:center;">
+        <p class="text-muted text-sm">Prefer a quicker login?
+          <a href="#" onclick="switchLoginTab('pin'); return false;" style="color:#2563eb; font-weight:600;">Use your 4-digit Senior PIN instead</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer links -->
+    <div class="auth-footer-links" style="margin-top:24px; padding-top:16px; border-top:1px solid var(--border-light); text-align:center;">
+      <p style="margin-bottom:6px;">Have a 6-digit family passcode? <a href="{{ url_for('passcode_access') }}" style="color:var(--primary); font-weight:600;">Enter Passcode directly</a></p>
+      <p>New to ElderCare? <a href="{{ url_for('register') }}" style="color:var(--primary); font-weight:600;">Create an Account</a></p>
+    </div>
+
+    <section class="demo-credential-hint" aria-label="Demo login information" style="margin-top:20px; padding:16px; text-align:left;">
+      <h3 style="margin:0 0 10px; color:var(--navy);">Demo Login Information</h3>
+      <ul style="margin:0; padding-left:20px; line-height:1.8;">
+        <li><strong>Senior PIN:</strong> <code>1234</code></li>
+        <li><strong>Caregiver:</strong> <code>david.vance@example.com</code> / <code>care123</code></li>
+        <li><strong>Family passcode:</strong> <code>CARE74</code></li>
+        <li><strong>Doctor:</strong> <code>dr.evans@example.com</code> / <code>doc123</code></li>
+      </ul>
+      <p style="margin:10px 0 0;">For the seeded local demo accounts only.</p>
+    </section>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function switchLoginTab(tab) {
+    ['pinLoginForm','emailLoginForm','doctorLoginForm','patientLoginForm'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+    ['tabPinBtn','tabEmailBtn','tabDoctorBtn','tabPatientBtn'].forEach(id => {
+      document.getElementById(id).classList.remove('active');
+    });
+
+    const map = {
+      pin:    ['pinLoginForm',    'tabPinBtn',     'senior_pin'],
+      email:  ['emailLoginForm',  'tabEmailBtn',   'email'],
+      doctor: ['doctorLoginForm', 'tabDoctorBtn',  'doc_email'],
+      patient:['patientLoginForm','tabPatientBtn', 'patient_email'],
+    };
+    if (map[tab]) {
+      document.getElementById(map[tab][0]).style.display = 'block';
+      document.getElementById(map[tab][1]).classList.add('active');
+      const inp = document.getElementById(map[tab][2]);
+      if (inp) inp.focus();
+    }
+  }
+
+  function togglePwd(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+    } else {
+      input.type = 'password';
+      btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+    }
+  }
+
+  // Auto-open doctor tab if URL hash
+  if (window.location.hash === '#doctor') switchLoginTab('doctor');
+  if (window.location.hash === '#patient') switchLoginTab('patient');
+</script>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Passcode Access — ElderCare Platform{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+  <div class="auth-card animate-scale-up">
+    <div class="auth-icon-badge">
+      <i class="fa-solid fa-key"></i>
+    </div>
+    
+    <h2>Care Circle Passcode Access</h2>
+    <p class="auth-subtitle">
+      Enter the 6-character Passcode provided by your elderly loved one or primary caregiver to access their health profile securely.
+    </p>
+
+    <form action="{{ url_for('passcode_access') }}" method="POST" class="auth-form">
+      <div class="form-group text-center">
+        <label for="passcode" class="passcode-label">6-Character Family Passcode</label>
+        <div class="passcode-input-container">
+          <input 
+            type="text" 
+            id="passcode" 
+            name="passcode" 
+            maxlength="10" 
+            class="form-control passcode-input" 
+            placeholder="Enter your passcode" 
+            required 
+            autofocus 
+            autocomplete="off"
+            style="text-transform: uppercase;"
+          >
+        </div>
+        <small class="form-hint">Use the passcode shared with you by the senior or primary caregiver.</small>
+      </div>
+
+      <div class="form-group">
+        <label for="caretaker_name"><i class="fa-solid fa-user"></i> Your Name:</label>
+        <input type="text" id="caretaker_name" name="caretaker_name" class="form-control" placeholder="e.g. David Vance" required value="Family Member">
+      </div>
+
+      <div class="form-group">
+        <label for="relation"><i class="fa-solid fa-people-roof"></i> Your Relationship to Senior:</label>
+        <select id="relation" name="relation" class="form-control">
+          <option value="Daughter">Daughter</option>
+          <option value="Son" selected>Son</option>
+          <option value="Spouse">Spouse</option>
+          <option value="Grandchild">Grandchild</option>
+          <option value="Home Nurse">Home Caretaker / Visiting Nurse</option>
+          <option value="Primary Physician">Physician / Doctor</option>
+          <option value="Other Relative">Other Relative</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary-full btn-lg">
+        <i class="fa-solid fa-shield-halved"></i> Connect to Health Profile
+      </button>
+    </form>
+
+    <section class="demo-credential-hint" aria-label="Demo family passcodes" style="margin-top:20px; padding:16px; text-align:left;">
+      <h3 style="margin:0 0 10px; color:var(--navy);">Demo Passcodes</h3>
+      <ul style="margin:0; padding-left:20px; line-height:1.8;">
+        <li><strong>Demo profile 1:</strong> <code>CARE74</code></li>
+        <li><strong>Demo profile 2:</strong> <code>CARE81</code></li>
+      </ul>
+      <p style="margin:10px 0 0;">For the seeded local demo profiles only.</p>
+    </section>
+
+    <div class="auth-footer-links">
+      <p>Are you the senior individual? <a href="{{ url_for('login') }}">Sign in with your 4-digit PIN</a></p>
+      <p>Need to create a new profile? <a href="{{ url_for('register') }}">Create an Elderly Profile</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

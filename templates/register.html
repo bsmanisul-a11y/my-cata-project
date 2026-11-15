@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Create Profile / Register — ElderCare Platform{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+  <div class="auth-card register-card animate-scale-up">
+    
+    <div class="section-heading text-center" style="margin-bottom: 24px;">
+      <h2>Join the ElderCare Ecosystem</h2>
+      <p>Set up an elderly healthcare profile or join as an authorized family caretaker.</p>
+    </div>
+
+    <!-- Role Switcher -->
+    <div class="auth-tab-group">
+      <button type="button" class="auth-tab active" id="tabElderlyBtn" onclick="switchRegRole('elderly')">
+        <i class="fa-solid fa-person-cane"></i> Register as Senior
+      </button>
+      <button type="button" class="auth-tab" id="tabCaregiverBtn" onclick="switchRegRole('caregiver')">
+        <i class="fa-solid fa-user-nurse"></i> Register as Family / Caregiver
+      </button>
+    </div>
+
+    <form action="{{ url_for('register') }}" method="POST" class="auth-form" id="registerForm">
+      <input type="hidden" name="reg_type" id="regTypeInput" value="elderly">
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="name"><i class="fa-solid fa-user"></i> Full Name *</label>
+          <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Margaret Thatcher" required>
+        </div>
+
+        <div class="form-group">
+          <label for="email"><i class="fa-solid fa-envelope"></i> Email Address *</label>
+          <input type="email" id="email" name="email" class="form-control" placeholder="e.g. margaret@example.com" required>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="password"><i class="fa-solid fa-lock"></i> Password *</label>
+          <input type="password" id="password" name="password" class="form-control" placeholder="Minimum 6 characters" required>
+        </div>
+
+        <div class="form-group">
+          <label for="phone"><i class="fa-solid fa-phone"></i> Phone Number</label>
+          <input type="text" id="phone" name="phone" class="form-control" placeholder="+1 (555) 000-0000">
+        </div>
+      </div>
+
+      <!-- ELDERLY-SPECIFIC FIELDS -->
+      <div id="elderlyFields">
+        <div class="form-section-divider">
+          <span><i class="fa-solid fa-heart-pulse"></i> Healthcare Profile & Emergency Details</span>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="age"><i class="fa-solid fa-cake-candles"></i> Age</label>
+            <input type="number" id="age" name="age" class="form-control" placeholder="e.g. 74" min="40" max="120" value="72">
+          </div>
+
+          <div class="form-group">
+            <label for="blood_group"><i class="fa-solid fa-droplet"></i> Blood Group</label>
+            <select id="blood_group" name="blood_group" class="form-control">
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="O+" selected>O+</option>
+              <option value="O-">O-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="senior_pin"><i class="fa-solid fa-key"></i> 4-Digit Quick PIN</label>
+            <input type="text" id="senior_pin" name="senior_pin" class="form-control" placeholder="1234" maxlength="4" value="1234">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="allergies"><i class="fa-solid fa-hand-dots"></i> Known Allergies</label>
+          <input type="text" id="allergies" name="allergies" class="form-control" placeholder="e.g. Penicillin, Peanuts, Aspirin (or 'None')">
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="emergency_name"><i class="fa-solid fa-shield"></i> Emergency Contact Name</label>
+            <input type="text" id="emergency_name" name="emergency_name" class="form-control" placeholder="e.g. Son / Daughter Name">
+          </div>
+
+          <div class="form-group">
+            <label for="emergency_phone"><i class="fa-solid fa-phone-volume"></i> Emergency Phone</label>
+            <input type="text" id="emergency_phone" name="emergency_phone" class="form-control" placeholder="+1 (555) 999-9999">
+          </div>
+
+          <div class="form-group">
+            <label for="emergency_email"><i class="fa-solid fa-envelope-circle-check"></i> Emergency Email (for Alerts)</label>
+            <input type="email" id="emergency_email" name="emergency_email" class="form-control" placeholder="family@example.com">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="physician"><i class="fa-solid fa-user-doctor"></i> Primary Doctor / Physician</label>
+          <input type="text" id="physician" name="physician" class="form-control" placeholder="e.g. Dr. Robert Evans (Cardiology)">
+        </div>
+      </div>
+
+      <!-- CAREGIVER-SPECIFIC FIELDS -->
+      <div id="caregiverFields" style="display: none;">
+        <div class="form-section-divider">
+          <span><i class="fa-solid fa-link"></i> Link to Existing Senior's Profile</span>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="join_passcode"><i class="fa-solid fa-key"></i> Family Passcode (Optional)</label>
+            <input type="text" id="join_passcode" name="join_passcode" class="form-control" placeholder="Enter a code now or connect later" style="text-transform: uppercase;">
+            <small class="form-hint">Enter your loved one's code to link now, or connect after signup when you receive it.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="relation"><i class="fa-solid fa-people-arrows"></i> Your Relationship</label>
+            <select id="relation" name="relation" class="form-control">
+              <option value="Daughter">Daughter</option>
+              <option value="Son">Son</option>
+              <option value="Spouse">Spouse</option>
+              <option value="Visiting Nurse">Visiting Nurse / Caretaker</option>
+              <option value="Grandchild">Grandchild</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary-full btn-lg" style="margin-top: 20px;">
+        <i class="fa-solid fa-check"></i> Complete Registration & Open Platform
+      </button>
+    </form>
+
+    <div class="auth-footer-links">
+      <p>Already have an account or PIN? <a href="{{ url_for('login') }}">Sign In</a></p>
+      <p>Have a 6-digit passcode? <a href="{{ url_for('passcode_access') }}">Direct Passcode Access</a></p>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function switchRegRole(role) {
+    const elderlyFields = document.getElementById('elderlyFields');
+    const caregiverFields = document.getElementById('caregiverFields');
+    const regTypeInput = document.getElementById('regTypeInput');
+    const tabElderlyBtn = document.getElementById('tabElderlyBtn');
+    const tabCaregiverBtn = document.getElementById('tabCaregiverBtn');
+    if (role === 'elderly') {
+      regTypeInput.value = 'elderly';
+      elderlyFields.style.display = 'block';
+      caregiverFields.style.display = 'none';
+      tabElderlyBtn.classList.add('active');
+      tabCaregiverBtn.classList.remove('active');
+    } else {
+      regTypeInput.value = 'caregiver';
+      elderlyFields.style.display = 'none';
+      caregiverFields.style.display = 'block';
+      tabCaregiverBtn.classList.add('active');
+      tabElderlyBtn.classList.remove('active');
+    }
+  }
+</script>
+{% endblock %}

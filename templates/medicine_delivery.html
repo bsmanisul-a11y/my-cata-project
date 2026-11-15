@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Medicine Delivery Tracking — ElderCare{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+  <div class="page-header-row">
+    <div>
+      <span class="subheading">Hospital Pharmacy · Demo Delivery</span>
+      <h1 class="page-title"><i class="fa-solid fa-truck-fast text-blue"></i> Medicine Delivery</h1>
+      <p class="text-muted">Order #{{ order.id }} for {{ profile.full_name }}</p>
+    </div>
+    <div class="header-actions">
+      <a href="{{ url_for('medications') }}" class="btn btn-outline">Back to Medications</a>
+    </div>
+  </div>
+
+  <div class="medicine-delivery-layout">
+    <section class="card-panel delivery-tracking-card"
+      id="medicine-delivery-tracker"
+      data-status-url="{{ url_for('medicine_delivery_status', order_id=order.id) }}"
+      data-arrived-url="{{ url_for('mark_medicine_delivery_arrived', order_id=order.id) }}"
+      data-status="{{ order.status }}">
+      <div class="panel-header">
+        <div>
+          <h2><i class="fa-solid fa-location-dot"></i> Live Delivery Tracking</h2>
+          <p class="text-muted">Updates automatically while this page is open.</p>
+        </div>
+        <span class="delivery-status-pill" id="deliveryStatusLabel">
+          {% if order.status == 'on_the_way' %}Out for delivery
+          {% elif order.status == 'arrived' %}Arrived — check medicine
+          {% elif order.status == 'checked' %}Medicine checked — payment due
+          {% elif order.status == 'delivered' %}Delivered
+          {% else %}{{ order.status|replace('_', ' ')|title }}{% endif %}
+        </span>
+      </div>
+
+      <div class="panel-body">
+        <ol class="delivery-progress" id="deliveryProgress">
+          {% set progress_index = {'on_the_way': 0, 'arrived': 1, 'checked': 2, 'delivered': 3}.get(order.status, 0) %}
+          <li class="delivery-progress-step" data-step="on_the_way">
+            <span class="delivery-step-icon"><i class="fa-solid fa-truck-fast"></i></span>
+            <span>Out for delivery</span>
+          </li>
+          <li class="delivery-progress-step" data-step="arrived">
+            <span class="delivery-step-icon"><i class="fa-solid fa-house-medical-circle-check"></i></span>
+            <span>Arrived</span>
+          </li>
+          <li class="delivery-progress-step" data-step="checked">
+            <span class="delivery-step-icon"><i class="fa-solid fa-pills"></i></span>
+            <span>Medicine checked</span>
+          </li>
+          <li class="delivery-progress-step" data-step="delivered">
+            <span class="delivery-step-icon"><i class="fa-solid fa-circle-check"></i></span>
+            <span>Delivered</span>
+          </li>
+        </ol>
+        <div class="delivery-progress-track">
+          <div class="delivery-progress-fill" id="deliveryProgressFill"
+            style="width: {{ progress_index * 33.333 }}%;"></div>
+        </div>
+
+        <div class="delivery-rider-card">
+          <div class="delivery-rider-icon"><i class="fa-solid fa-motorcycle"></i></div>
+          <div>
+            <span class="text-muted">Hospital courier</span>
+            <strong>{{ order.rider_name }}</strong>
+            <span>{{ order.vehicle_number }} · {{ order.hospital_name }}</span>
+          </div>
+          <div class="delivery-eta">
+            <span class="text-muted">Estimated time</span>
+            <strong id="deliveryEta">
+              {% if order.status == 'arrived' %}Arrived — check medicine
+              {% elif order.status == 'checked' %}Payment due
+              {% elif order.status == 'delivered' %}Delivered
+              {% else %}{{ order.eta_minutes }} min{% endif %}
+            </strong>
+          </div>
+        </div>
+
+        <div class="delivery-arrival-alert" id="deliveryArrivalAlert" role="status" aria-live="polite"
+          {% if order.status == 'on_the_way' %}style="display:none;"{% endif %}>
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Your medicine has arrived. Check it before payment; stock updates after checkout.</span>
+          <button type="button" class="btn btn-outline btn-sm-outline" id="playArrivalSound">
+            <i class="fa-solid fa-volume-high"></i> Play arrival sound
+          </button>
+        </div>
+
+        {% if order.status == 'on_the_way' %}
+        <form action="{{ url_for('mark_medicine_delivery_arrived', order_id=order.id) }}"
+          method="POST" id="simulateArrivalForm" class="delivery-demo-control">
+          <p><strong>Demo tracking:</strong> use this control to simulate the hospital courier arriving.</p>
+          <button type="submit" class="btn btn-primary" id="simulateArrivalButton">
+            <i class="fa-solid fa-box-open"></i> Confirm medicine arrived
+          </button>
+        </form>
+        {% endif %}
+
+        <p class="delivery-demo-note">
+          Demo only: this tracker does not contact a hospital or courier. A real delivery would need a pharmacy and courier integration.
+        </p>
+        <p id="deliveryTrackingError" class="delivery-error" role="alert" style="display:none;"></p>
+      </div>
+    </section>
+
+    <aside class="card-panel delivery-order-card">
+      <div class="panel-header">
+        <h2><i class="fa-solid fa-prescription-bottle-medical"></i> Order Details</h2>
+      </div>
+      <div class="panel-body">
+        <dl class="delivery-order-details">
+          <div><dt>Medicine</dt><dd>{{ order.medication_name }}{% if order.dosage %} · {{ order.dosage }}{% endif %}</dd></div>
+          <div><dt>Quantity</dt><dd>{{ order.quantity }} doses</dd></div>
+          <div><dt>Pharmacy</dt><dd>{{ order.hospital_name }}</dd></div>
+          <div><dt>Delivery address</dt><dd>{{ order.delivery_address or 'Address not provided' }}</dd></div>
+          <div><dt>Demo total</dt><dd>₹{{ '%.2f'|format(order.total_amount) }}</dd></div>
+          {% if order.payment_method %}<div><dt>Payment</dt><dd>{{ order.payment_method }}</dd></div>{% endif %}
+        </dl>
+
+        <div class="delivery-check-panel" id="deliveryCheckPanel"
+          {% if order.status != 'arrived' %}style="display:none;"{% endif %}>
+          <h3>Check your medicine before payment</h3>
+          <p>Check the medicine name, dosage, and quantity you received against the order above.</p>
+          <form action="{{ url_for('check_medicine_delivery', order_id=order.id) }}" method="POST">
+            <label class="delivery-check-label">
+              <input type="checkbox" name="medicine_checked" value="yes" required>
+              I received and checked the medicine against this order.
+            </label>
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-check"></i> Confirm medicine checked
+            </button>
+          </form>
+        </div>
+        {% if order.status == 'checked' %}
+        <div class="delivery-payment-panel">
+          <h3>Choose payment method</h3>
+          <p class="delivery-demo-note">Payments are simulated for this demo. No money is transferred.</p>
+
+          <form action="{{ url_for('pay_medicine_delivery', order_id=order.id) }}" method="POST">
+            <input type="hidden" name="payment_method" value="cod">
+            <button type="submit" class="btn btn-outline delivery-payment-button">
+              <i class="fa-solid fa-money-bill-wave"></i> Cash on Delivery
+            </button>
+          </form>
+
+          <form action="{{ url_for('pay_medicine_delivery', order_id=order.id) }}" method="POST" class="delivery-upi-form">
+            <input type="hidden" name="payment_method" value="upi">
+            <label for="deliveryUpiId">UPI ID</label>
+            <input type="text" id="deliveryUpiId" name="upi_id" class="form-control"
+              placeholder="name@bank" autocomplete="off" required
+              pattern="[A-Za-z0-9._-]{2,256}@[A-Za-z][A-Za-z0-9]{1,63}">
+            <button type="submit" class="btn btn-primary delivery-payment-button">
+              <i class="fa-solid fa-mobile-screen-button"></i> Pay with UPI
+            </button>
+          </form>
+        </div>
+        {% elif order.payment_method == 'COD' %}
+        <div class="delivery-payment-success">
+          <i class="fa-solid fa-heart-circle-check"></i>
+          <strong>Thank you, your health is our wealth.</strong>
+          <span>Cash on Delivery was selected for this demo order.</span>
+        </div>
+        {% elif order.payment_method == 'UPI' %}
+          {% if upi_processing %}
+          <div class="delivery-payment-success" id="upiProcessing">
+            <span class="delivery-spinner" aria-hidden="true"></span>
+            <strong>Processing simulated UPI payment…</strong>
+            <span>Please wait 5 seconds.</span>
+          </div>
+          <div class="delivery-payment-success" id="upiPaymentSuccess" style="display:none;">
+            <i class="fa-solid fa-circle-check"></i>
+            <strong>Payment successful (demo).</strong>
+            <span>Thank you, your health is our wealth.</span>
+          </div>
+          {% else %}
+          <div class="delivery-payment-success">
+            <i class="fa-solid fa-circle-check"></i>
+            <strong>Payment successful (demo).</strong>
+            <span>Thank you, your health is our wealth.</span>
+          </div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const tracker = document.getElementById('medicine-delivery-tracker');
+  if (!tracker) return;
+
+  const statusUrl = tracker.dataset.statusUrl;
+  const arrivalUrl = tracker.dataset.arrivedUrl;
+  const statusLabel = document.getElementById('deliveryStatusLabel');
+  const etaLabel = document.getElementById('deliveryEta');
+  const progressFill = document.getElementById('deliveryProgressFill');
+  const arrivalAlert = document.getElementById('deliveryArrivalAlert');
+  const checkPanel = document.getElementById('deliveryCheckPanel');
+  const errorMessage = document.getElementById('deliveryTrackingError');
+  const simulateForm = document.getElementById('simulateArrivalForm');
+  let lastStatus = tracker.dataset.status;
+  let hasPlayedArrivalSound = false;
+
+  const statusLabels = {
+    on_the_way: 'Out for delivery',
+    arrived: 'Arrived — check medicine',
+    checked: 'Medicine checked — payment due',
+    delivered: 'Delivered'
+  };
+  const statusOrder = ['on_the_way', 'arrived', 'checked', 'delivered'];
+
+  function playArrivalSound() {
+    if (hasPlayedArrivalSound) return;
+    hasPlayedArrivalSound = true;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      errorMessage.textContent = 'Medicine arrived. This browser does not support the arrival sound.';
+      errorMessage.style.display = 'block';
+      return;
+    }
+
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const volume = context.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, context.currentTime);
+    oscillator.frequency.setValueAtTime(660, context.currentTime + 0.25);
+    volume.gain.setValueAtTime(0.08, context.currentTime);
+    volume.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.65);
+    oscillator.connect(volume);
+    volume.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.65);
+    oscillator.onended = () => context.close();
+  }
+
+  function updateTracking(data) {
+    const status = data.status;
+    statusLabel.textContent = statusLabels[status] || status;
+    const etaMessages = {
+      arrived: 'Arrived — check medicine',
+      checked: 'Payment due',
+      delivered: 'Delivered'
+    };
+    etaLabel.textContent = etaMessages[status] || `${data.eta_minutes} min`;
+    tracker.dataset.status = status;
+
+    const progressIndex = statusOrder.indexOf(status);
+    progressFill.style.width = `${Math.max(0, progressIndex) * 33.333}%`;
+    document.querySelectorAll('.delivery-progress-step').forEach((step) => {
+      const stepIndex = statusOrder.indexOf(step.dataset.step);
+      step.classList.toggle('is-complete', stepIndex < progressIndex);
+      step.classList.toggle('is-current', stepIndex === progressIndex);
+    });
+
+    if (['arrived', 'checked', 'delivered'].includes(status)) {
+      arrivalAlert.style.display = 'flex';
+      const arrivalForm = document.getElementById('simulateArrivalForm');
+      if (arrivalForm) arrivalForm.remove();
+      if (status === 'arrived' && lastStatus === 'on_the_way') playArrivalSound();
+    }
+    checkPanel.style.display = status === 'arrived' ? 'grid' : 'none';
+    lastStatus = status;
+  }
+
+  async function refreshTracking() {
+    const response = await fetch(statusUrl, { headers: { 'Accept': 'application/json' } });
+    if (!response.ok) throw new Error('Could not refresh delivery tracking.');
+    updateTracking(await response.json());
+    errorMessage.style.display = 'none';
+  }
+
+  if (['arrived', 'checked', 'delivered'].includes(lastStatus)) {
+    arrivalAlert.style.display = 'flex';
+  }
+
+  if (simulateForm) {
+    simulateForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = document.getElementById('simulateArrivalButton');
+      button.disabled = true;
+      try {
+        const response = await fetch(arrivalUrl, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not update delivery status.');
+        updateTracking(data);
+        errorMessage.style.display = 'none';
+      } catch (error) {
+        console.error('Delivery update failed:', error);
+        errorMessage.textContent = error.message;
+        errorMessage.style.display = 'block';
+        button.disabled = false;
+      }
+    });
+  }
+
+  const soundButton = document.getElementById('playArrivalSound');
+  if (soundButton) soundButton.addEventListener('click', () => {
+    hasPlayedArrivalSound = false;
+    playArrivalSound();
+  });
+
+  const processing = document.getElementById('upiProcessing');
+  const paymentSuccess = document.getElementById('upiPaymentSuccess');
+  if (processing && paymentSuccess) {
+    window.setTimeout(() => {
+      processing.style.display = 'none';
+      paymentSuccess.style.display = 'flex';
+    }, 5000);
+  }
+
+  window.setInterval(() => {
+    refreshTracking().catch((error) => {
+      console.error('Delivery tracking refresh failed:', error);
+      errorMessage.textContent = error.message;
+      errorMessage.style.display = 'block';
+    });
+  }, 5000);
+})();
+</script>
+{% endblock %}

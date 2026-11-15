@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Vitals & Health Trends — ElderCare Platform{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js for Interactive Health Graphs -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header-row">
+    <div>
+      <span class="subheading">Physiological Monitoring & Trends</span>
+      <h1 class="page-title"><i class="fa-solid fa-wave-square text-green"></i> Daily Health Routines & Vitals</h1>
+      <p class="text-muted">Compare blood pressure, blood glucose, and heart rate trends. Synchronized directly with doctor examinations.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary" onclick="openAddVitalModal()">
+        <i class="fa-solid fa-plus"></i> Record Today's Vitals
+      </button>
+      <button type="button" class="btn btn-outline" onclick="playVitalAlertSound()" title="Test Abnormal Threshold Chime">
+        <i class="fa-solid fa-volume-high"></i> Test Alert Audio
+      </button>
+    </div>
+  </div>
+
+  <!-- ABNORMAL VITALS WARNING BANNER & AUDIO TRIGGER -->
+  {% if has_abnormal %}
+  <div class="vital-abnormal-banner animate-slide-down">
+    <div class="abnormal-banner-icon">
+      <i class="fa-solid fa-triangle-exclamation fa-2x fa-beat"></i>
+    </div>
+    <div class="abnormal-banner-text">
+      <h3>⚠️ Clinical Alert: Vital Sign Elevated Above Standard Threshold!</h3>
+      <p>
+        The latest vital recording ({{ latest_vital.log_date }} at {{ latest_vital.log_time }}) showed:
+        {% if latest_vital.systolic_bp and latest_vital.systolic_bp >= 140 %}<strong>Systolic BP: {{ latest_vital.systolic_bp }} mmHg (Stage 2 Hypertension)</strong>. {% endif %}
+        {% if latest_vital.diastolic_bp and latest_vital.diastolic_bp >= 90 %}<strong>Diastolic BP: {{ latest_vital.diastolic_bp }} mmHg (Elevated)</strong>. {% endif %}
+        {% if latest_vital.blood_glucose and latest_vital.blood_glucose >= 140 %}<strong>Blood Glucose: {{ latest_vital.blood_glucose }} mg/dL (Above 140 mg/dL target)</strong>. {% endif %}
+        {% if latest_vital.heart_rate and latest_vital.heart_rate >= 100 %}<strong>Heart Rate: {{ latest_vital.heart_rate }} bpm (Tachycardia alert)</strong>. {% endif %}
+        Please rest, stay hydrated, and contact your attending doctor if symptoms persist.
+      </p>
+    </div>
+    <button type="button" class="btn btn-sm-danger" onclick="playVitalAlertSound()">
+      <i class="fa-solid fa-bell"></i> Re-play Alert Chime
+    </button>
+  </div>
+  {% endif %}
+
+  <!-- SUMMARY METRICS -->
+  <div class="stats-overview-grid" style="margin-bottom: 28px;">
+    <!-- Blood Pressure -->
+    <div class="stat-card">
+      <div class="stat-icon-wrap icon-red"><i class="fa-solid fa-heart-pulse"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Blood Pressure</span>
+        <div class="stat-value-group">
+          <span class="stat-number {% if latest_vital and latest_vital.systolic_bp and latest_vital.systolic_bp >= 140 %}text-danger{% endif %}">
+            {% if latest_vital and latest_vital.systolic_bp %}{{ latest_vital.systolic_bp }}/{{ latest_vital.diastolic_bp }}{% else %}122/78{% endif %}
+          </span>
+          <span class="stat-sub">mmHg (Normal: &lt;120/80)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blood Glucose -->
+    <div class="stat-card">
+      <div class="stat-icon-wrap icon-amber"><i class="fa-solid fa-droplet"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Blood Glucose</span>
+        <div class="stat-value-group">
+          <span class="stat-number {% if latest_vital and latest_vital.blood_glucose and latest_vital.blood_glucose >= 140 %}text-danger{% endif %}">
+            {% if latest_vital and latest_vital.blood_glucose %}{{ latest_vital.blood_glucose }}{% else %}110{% endif %}
+          </span>
+          <span class="stat-sub">mg/dL (Target: &lt;140)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Heart Rate -->
+    <div class="stat-card">
+      <div class="stat-icon-wrap icon-blue"><i class="fa-solid fa-stopwatch-20"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Resting Heart Rate</span>
+        <div class="stat-value-group">
+          <span class="stat-number {% if latest_vital and latest_vital.heart_rate and latest_vital.heart_rate >= 100 %}text-danger{% endif %}">
+            {% if latest_vital and latest_vital.heart_rate %}{{ latest_vital.heart_rate }}{% else %}70{% endif %}
+          </span>
+          <span class="stat-sub">BPM (Normal: 60-100)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hydration & Mood -->
+    <div class="stat-card">
+      <div class="stat-icon-wrap icon-teal"><i class="fa-solid fa-glass-water"></i></div>
+      <div class="stat-info">
+        <span class="stat-label">Hydration & Well-Being</span>
+        <div class="stat-value-group">
+          <span class="stat-number-sm">
+            {% if latest_vital %}{{ latest_vital.water_glasses }} Glasses &bull; {{ latest_vital.mood|title }}{% else %}7 Glasses &bull; Good{% endif %}
+          </span>
+          <span class="stat-sub">Daily Routine Habit</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERACTIVE COMPARISON GRAPHS -->
+  <div class="section-title-bar">
+    <h2><i class="fa-solid fa-chart-line text-blue"></i> Individual Vital Trend Comparison Graphs</h2>
+    <p class="section-sub">Real-time charts comparing historical readings. Data includes doctor in-office logs and patient entries.</p>
+  </div>
+
+  <div class="vitals-charts-grid">
+    
+    <!-- 1. BLOOD PRESSURE COMPARISON GRAPH -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div>
+          <h3><i class="fa-solid fa-heart-pulse text-red"></i> Blood Pressure (Systolic & Diastolic)</h3>
+          <small class="text-muted">Thresholds: Normal (&lt;120/80) &bull; High Alert (&ge;140/90 mmHg)</small>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap">
+        <canvas id="bpChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 2. BLOOD GLUCOSE COMPARISON GRAPH -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div>
+          <h3><i class="fa-solid fa-droplet text-amber"></i> Blood Glucose Trend (mg/dL)</h3>
+          <small class="text-muted">Thresholds: Normal (&lt;100 mg/dL fasting) &bull; High Alert (&ge;140 mg/dL)</small>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap">
+        <canvas id="glucoseChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 3. HEART RATE COMPARISON GRAPH -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div>
+          <h3><i class="fa-solid fa-stopwatch text-blue"></i> Resting Heart Rate (BPM)</h3>
+          <small class="text-muted">Thresholds: Normal Resting (60-100 BPM) &bull; Tachycardia (&gt;100 BPM)</small>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap">
+        <canvas id="hrChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- VITALS HISTORY LOG TABLE -->
+  <div class="card-panel" style="margin-top: 36px;">
+    <div class="panel-header">
+      <div>
+        <h3><i class="fa-solid fa-list-check"></i> Complete Health Check-In History</h3>
+        <p class="text-muted text-sm">Includes provenance of records (logged by Senior vs examined by Doctor in clinic).</p>
+      </div>
+      <button class="btn btn-sm-primary" onclick="openAddVitalModal()"><i class="fa-solid fa-plus"></i> New Entry</button>
+    </div>
+    <div class="panel-body no-padding">
+      <div class="table-responsive">
+        <table class="table-modern">
+          <thead>
+            <tr>
+              <th>Date & Time</th>
+              <th>Source / Examiner</th>
+              <th>Blood Pressure</th>
+              <th>Blood Glucose</th>
+              <th>Heart Rate</th>
+              <th>Hydration</th>
+              <th>Mood</th>
+              <th>Observations & Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in vitals_history %}
+            <tr class="{% if v.is_abnormal %}row-abnormal{% endif %}">
+              <td><strong>{{ v.log_date }}</strong> at {{ v.log_time }}</td>
+              <td>
+                {% if v.logged_by_doctor %}
+                  <span class="badge-tag tag-purple"><i class="fa-solid fa-user-doctor"></i> Doctor Examined ({{ v.doctor_name or 'Dr. Evans' }})</span>
+                {% else %}
+                  <span class="badge-tag tag-blue"><i class="fa-solid fa-house-user"></i> Patient Self-Log</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if v.systolic_bp and v.diastolic_bp %}
+                  <span class="vital-value {% if v.systolic_bp >= 140 or v.diastolic_bp >= 90 %}vital-high{% endif %}">
+                    {{ v.systolic_bp }}/{{ v.diastolic_bp }} mmHg
+                    {% if v.systolic_bp >= 140 %}<i class="fa-solid fa-triangle-exclamation text-danger" title="Elevated"></i>{% endif %}
+                  </span>
+                {% else %}-{% endif %}
+              </td>
+              <td>
+                {% if v.blood_glucose %}
+                  <span class="vital-value {% if v.blood_glucose >= 140 %}vital-high{% endif %}">
+                    {{ v.blood_glucose }} mg/dL
+                    {% if v.blood_glucose >= 140 %}<i class="fa-solid fa-triangle-exclamation text-danger" title="Elevated"></i>{% endif %}
+                  </span>
+                {% else %}-{% endif %}
+              </td>
+              <td>
+                {% if v.heart_rate %}
+                  <span class="vital-value {% if v.heart_rate >= 100 %}vital-high{% endif %}">
+                    {{ v.heart_rate }} bpm
+                  </span>
+                {% else %}-{% endif %}
+              </td>
+              <td>💧 {{ v.water_glasses }} glasses</td>
+              <td>
+                {% if v.mood == 'happy' %}😊 Happy
+                {% elif v.mood == 'good' %}🙂 Good
+                {% elif v.mood == 'okay' %}😐 Okay
+                {% elif v.mood == 'tired' %}😴 Tired
+                {% else %}🤒 Unwell{% endif %}
+              </td>
+              <td>{{ v.notes or '-' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- RECORD VITALS MODAL -->
+<div class="modal-backdrop" id="addVitalModal" style="display:none;">
+  <div class="modal-card animate-scale-up">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-heart-pulse text-red"></i> Record Daily Health Routine</h3>
+      <button class="close-btn" onclick="closeAddVitalModal()">&times;</button>
+    </div>
+    <form action="{{ url_for('vitals') }}" method="POST">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="systolic_bp">Systolic BP (Top number)</label>
+          <input type="number" id="systolic_bp" name="systolic_bp" class="form-control" placeholder="e.g. 120" min="60" max="250">
+        </div>
+
+        <div class="form-group">
+          <label for="diastolic_bp">Diastolic BP (Bottom number)</label>
+          <input type="number" id="diastolic_bp" name="diastolic_bp" class="form-control" placeholder="e.g. 80" min="40" max="150">
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="blood_glucose">Blood Glucose (mg/dL)</label>
+          <input type="number" step="0.1" id="blood_glucose" name="blood_glucose" class="form-control" placeholder="e.g. 110.5">
+        </div>
+
+        <div class="form-group">
+          <label for="heart_rate">Heart Rate / Pulse (BPM)</label>
+          <input type="number" id="heart_rate" name="heart_rate" class="form-control" placeholder="e.g. 72">
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="water_glasses">Water Intake (Glasses)</label>
+          <input type="number" id="water_glasses" name="water_glasses" class="form-control" value="6" min="0" max="20">
+        </div>
+
+        <div class="form-group">
+          <label for="mood">How are you feeling today?</label>
+          <select id="mood" name="mood" class="form-control">
+            <option value="happy">😊 Energetic & Happy</option>
+            <option value="good" selected>🙂 Good / Comfortable</option>
+            <option value="okay">😐 Fair / Average</option>
+            <option value="tired">😴 A bit tired</option>
+            <option value="unwell">🤒 Feeling unwell / discomfort</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="notes">Notes or Symptoms</label>
+        <input type="text" id="notes" name="notes" class="form-control" placeholder="e.g. Walked in garden for 20 mins. Slept 8 hours.">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeAddVitalModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Health Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openAddVitalModal() { document.getElementById('addVitalModal').style.display = 'flex'; }
+  function closeAddVitalModal() { document.getElementById('addVitalModal').style.display = 'none'; }
+
+  // ----------------- ABNORMAL VITAL ALERT SOUND (WEB AUDIO API) -----------------
+  function playVitalAlertSound() {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+
+      // Two-tone medical warning chime (880Hz -> 660Hz)
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+
+      osc.frequency.setValueAtTime(880, now); // High pitch (A5)
+      osc.frequency.setValueAtTime(659.25, now + 0.35); // Lower pitch (E5)
+      osc.frequency.setValueAtTime(880, now + 0.7); // High pitch
+      osc.frequency.setValueAtTime(659.25, now + 0.95);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + 1.2);
+    } catch(e) {
+      console.log("Audio not supported or blocked:", e);
+    }
+  }
+
+  // Auto-play warning chime if abnormal vital is present on page load
+  {% if has_abnormal %}
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(playVitalAlertSound, 800);
+  });
+  {% endif %}
+
+  // ----------------- CHART.JS INTERACTIVE COMPARISON GRAPHS -----------------
+  document.addEventListener('DOMContentLoaded', () => {
+    const dates = {{ chart_dates|tojson }};
+    const sbpData = {{ chart_sbp|tojson }};
+    const dbpData = {{ chart_dbp|tojson }};
+    const glucoseData = {{ chart_glucose|tojson }};
+    const hrData = {{ chart_hr|tojson }};
+
+    // 1. Blood Pressure Chart
+    const ctxBP = document.getElementById('bpChart')?.getContext('2d');
+    if (ctxBP) {
+      new Chart(ctxBP, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [
+            {
+              label: 'Systolic BP (mmHg)',
+              data: sbpData,
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              tension: 0.3,
+              fill: true,
+              pointRadius: 5,
+              pointBackgroundColor: sbpData.map(val => val >= 140 ? '#b91c1c' : '#ef4444')
+            },
+            {
+              label: 'Diastolic BP (mmHg)',
+              data: dbpData,
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              tension: 0.3,
+              fill: true,
+              pointRadius: 5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+              callbacks: {
+                footer: (items) => {
+                  const s = items[0].parsed.y;
+                  if (s >= 140) return '⚠️ STAGE 2 HYPERTENSION ALERT';
+                  if (s >= 130) return 'Notice: Stage 1 Hypertension';
+                  return 'Normal Blood Pressure';
+                }
+              }
+            }
+          },
+          scales: {
+            y: { min: 50, max: 180, title: { display: true, text: 'Pressure (mmHg)' } }
+          }
+        }
+      });
+    }
+
+    // 2. Blood Glucose Chart
+    const ctxGlucose = document.getElementById('glucoseChart')?.getContext('2d');
+    if (ctxGlucose) {
+      new Chart(ctxGlucose, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            label: 'Blood Glucose (mg/dL)',
+            data: glucoseData,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.15)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 5,
+            pointBackgroundColor: glucoseData.map(val => val >= 140 ? '#dc2626' : '#f59e0b')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { min: 60, max: 200, title: { display: true, text: 'Glucose (mg/dL)' } }
+          }
+        }
+      });
+    }
+
+    // 3. Heart Rate Chart
+    const ctxHR = document.getElementById('hrChart')?.getContext('2d');
+    if (ctxHR) {
+      new Chart(ctxHR, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            label: 'Resting Heart Rate (BPM)',
+            data: hrData,
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.15)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 5,
+            pointBackgroundColor: hrData.map(val => val >= 100 ? '#dc2626' : '#06b6d4')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { min: 45, max: 130, title: { display: true, text: 'Heart Rate (BPM)' } }
+          }
+        }
+      });
+    }
+
+  });
+</script>
+{% endblock %}

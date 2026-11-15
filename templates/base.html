@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ElderCare — Smart Medication & Healthcare Platform{% endblock %}</title>
+  
+  <!-- Modern Clean Typography & FontAwesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Platform Stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="{% if senior_mode %}senior-mode{% endif %} font-size-normal" id="appBody">
+
+  <!-- TOP ACCESSIBILITY & CARE-CIRCLE BAR -->
+  <header class="top-announcement-bar">
+    <div class="container top-bar-content">
+      <div class="top-left-status">
+        <span class="live-dot" title="Care Circle Online"></span>
+        <span class="top-tagline">
+          {% if active_profile %}
+            Caring for <strong>{{ active_profile.full_name }}</strong> 
+            <span class="badge-code" title="Share with Family & Caretakers">
+              <i class="fa-solid fa-key"></i> Code: <strong>{{ active_profile.family_passcode }}</strong>
+            </span>
+          {% else %}
+            Connected Healthcare Ecosystem for Seniors & Families
+          {% endif %}
+        </span>
+      </div>
+      
+      <div class="top-accessibility-controls">
+        <!-- Font Size Adjuster -->
+        <div class="font-sizer" title="Adjust Display Size">
+          <button type="button" class="btn-text-size" onclick="changeFontSize('normal')" title="Normal Text">A</button>
+          <button type="button" class="btn-text-size medium" onclick="changeFontSize('large')" title="Large Text">A+</button>
+          <button type="button" class="btn-text-size large" onclick="changeFontSize('xlarge')" title="Extra Large Text">A++</button>
+        </div>
+
+        <!-- Senior / Caregiver Mode Toggle -->
+        <a href="{{ url_for('toggle_senior_mode') }}" class="btn-mode-toggle" title="Switch User Experience">
+          {% if senior_mode %}
+            <i class="fa-solid fa-glasses"></i> <span class="hide-mobile">Senior Friendly Mode</span>
+          {% else %}
+            <i class="fa-solid fa-user-nurse"></i> <span class="hide-mobile">Caregiver Detailed View</span>
+          {% endif %}
+        </a>
+
+        <!-- Speech Audio Readout Button -->
+        <button type="button" class="btn-voice-read" id="globalAudioBtn" onclick="speakCurrentPageRoutine()" title="Listen to Today's Routine (Voice Readout)">
+          <i class="fa-solid fa-volume-high"></i> <span class="hide-mobile">Listen</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN NAVIGATION -->
+  <nav class="main-navbar">
+    <div class="container nav-content">
+      <a href="{{ url_for('dashboard') if active_profile else url_for('index') }}" class="brand-logo">
+        <span class="brand-icon"><i class="fa-solid fa-heart-pulse"></i></span>
+        <div class="brand-text">
+          <span class="brand-name">ElderCare</span>
+          <span class="brand-sub">Medication & Care Circle</span>
+        </div>
+      </a>
+
+      <!-- Profile Switcher Dropdown (If caregiver manages multiple seniors) -->
+      {% if all_user_profiles and all_user_profiles|length > 1 %}
+      <div class="profile-switcher-dropdown">
+        <button class="btn-profile-switch" onclick="toggleProfileDropdown()">
+          <i class="fa-solid fa-user-shield"></i> {{ active_profile.full_name if active_profile else 'Select Loved One' }} <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="dropdown-menu-profiles" id="profileDropdown">
+          <div class="dropdown-header">Switch Loved One</div>
+          {% for p in all_user_profiles %}
+          <a href="{{ url_for('switch_profile', profile_id=p.id) }}" class="dropdown-item {% if active_profile and p.id == active_profile.id %}active{% endif %}">
+            <i class="fa-solid fa-user"></i> {{ p.full_name }} (Age {{ p.age or 'N/A' }})
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Nav Links -->
+      <ul class="nav-links">
+        {% if active_profile %}
+          <li><a href="{{ url_for('dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard' %}active{% endif %}"><i class="fa-solid fa-house-chimney-medical"></i> <span>Routine</span></a></li>
+          <li><a href="{{ url_for('medications') }}" class="nav-item {% if request.endpoint == 'medications' %}active{% endif %}"><i class="fa-solid fa-pills"></i> <span>Medications</span></a></li>
+          <li><a href="{{ url_for('appointments') }}" class="nav-item {% if request.endpoint == 'appointments' %}active{% endif %}"><i class="fa-solid fa-calendar-check"></i> <span>Appointments</span></a></li>
+          <li><a href="{{ url_for('caregiver') }}" class="nav-item {% if request.endpoint == 'caregiver' %}active{% endif %}"><i class="fa-solid fa-users-rays"></i> <span>Care Circle</span></a></li>
+          <li><a href="{{ url_for('vitals') }}" class="nav-item {% if request.endpoint == 'vitals' %}active{% endif %}"><i class="fa-solid fa-wave-square"></i> <span>Vitals</span></a></li>
+          <li><a href="{{ url_for('patient_reports') }}" class="nav-item {% if request.endpoint == 'patient_reports' %}active{% endif %}"><i class="fa-solid fa-folder-open"></i> <span>Reports</span></a></li>
+          <li><a href="{{ url_for('ambulance_service') }}" class="nav-item {% if request.endpoint == 'ambulance_service' or request.endpoint == 'ambulance_track' %}active text-red{% endif %}"><i class="fa-solid fa-truck-medical text-red"></i> <span>Ambulance</span></a></li>
+          {% if is_doctor %}
+          <li><a href="{{ url_for('doctor_portal') }}" class="nav-item {% if request.endpoint == 'doctor_portal' %}active{% endif %}" style="color: #7c3aed; font-weight: 800;"><i class="fa-solid fa-user-doctor"></i> <span>Doctor Portal</span></a></li>
+          {% endif %}
+        {% else %}
+          <li><a href="{{ url_for('index') }}" class="nav-item"><i class="fa-solid fa-house"></i> <span>Home</span></a></li>
+          <li><a href="{{ url_for('passcode_access') }}" class="nav-item"><i class="fa-solid fa-key"></i> <span>Enter Passcode</span></a></li>
+        {% endif %}
+      </ul>
+
+      <!-- Action & Emergency Buttons -->
+      <div class="nav-actions">
+        {% if active_profile %}
+          <!-- EMERGENCY SOS BUTTON -->
+          <button type="button" class="btn-sos pulse-sos" onclick="openSosModal()" title="Instant Emergency Assistance Request">
+            <i class="fa-solid fa-triangle-exclamation"></i> <span>SOS HELP</span>
+          </button>
+        {% endif %}
+
+        {% if current_user or active_profile %}
+          <div class="user-chip">
+            <span class="user-avatar">{{ current_user.name[:1] if current_user else active_profile.full_name[:1] }}</span>
+            <span class="user-greeting hide-mobile">{{ (current_user.name if current_user else active_profile.full_name).split()[0] }}</span>
+            <a href="{{ url_for('logout') }}" class="btn-logout" title="Sign Out"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
+          </div>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="btn-login-outline"><i class="fa-solid fa-right-to-bracket"></i> Sign In</a>
+          <a href="{{ url_for('register') }}" class="btn-primary-small"><i class="fa-solid fa-user-plus"></i> Join</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <!-- FLASH MESSAGES -->
+  <div class="container flash-container">
+    {% if active_ambulance %}
+    <div class="ambulance-active-banner animate-slide-down">
+      <div class="ambulance-banner-left">
+        <div class="siren-dot"></div>
+        <div>
+          <strong>🚨 EMERGENCY AMBULANCE IN TRANSIT ({{ active_ambulance.status|upper }})</strong>
+          <p>Paramedics (Unit {{ active_ambulance.vehicle_number }}) ETA: ~{{ active_ambulance.eta_minutes }} mins to {{ active_ambulance.pickup_address }}.</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <a href="{{ url_for('ambulance_track', req_id=active_ambulance.id) }}" class="btn btn-sm-danger">
+          <i class="fa-solid fa-location-arrow"></i> Live Tracker &rarr;
+        </a>
+        <form action="{{ url_for('dismiss_ambulance', req_id=active_ambulance.id) }}" method="POST" style="margin: 0;">
+          <button type="submit" class="btn btn-xs-outline" style="background: rgba(255,255,255,0.25); color: #ffffff; border: 1px solid rgba(255,255,255,0.5);" title="Dismiss ambulance banner">
+            Dismiss &times;
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert-banner alert-{{ category }} animate-slide-down">
+            <div class="alert-icon">
+              {% if category == 'success' %}<i class="fa-solid fa-circle-check"></i>
+              {% elif category == 'danger' %}<i class="fa-solid fa-triangle-exclamation"></i>
+              {% elif category == 'warning' %}<i class="fa-solid fa-circle-exclamation"></i>
+              {% else %}<i class="fa-solid fa-circle-info"></i>{% endif %}
+            </div>
+            <div class="alert-message">{{ message }}</div>
+            <button class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- MAIN BODY CONTENT -->
+  <main class="main-wrapper">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- EMERGENCY SOS MODAL -->
+  <div class="modal-backdrop" id="sosModal" style="display:none;">
+    <div class="modal-card modal-sos animate-scale-up">
+      <div class="modal-header-sos">
+        <i class="fa-solid fa-bell-concierge fa-3x sos-icon-spin"></i>
+        <h2>EMERGENCY ASSISTANCE CALL</h2>
+        <p>This will immediately dispatch urgent email & SMS notifications to all Care Circle members and emergency contacts.</p>
+      </div>
+      <form action="{{ url_for('trigger_sos') }}" method="POST">
+        {% if active_profile %}
+        <div class="emergency-summary-box">
+          <p><strong>Senior:</strong> {{ active_profile.full_name }} (Blood Group: {{ active_profile.blood_group }})</p>
+          <p><strong>Primary Contact:</strong> {{ active_profile.emergency_contact_name }} ({{ active_profile.emergency_contact_phone }})</p>
+          <p><strong>Known Allergies:</strong> {{ active_profile.allergies }}</p>
+        </div>
+        {% endif %}
+        <div class="form-group">
+          <label>Emergency Note / Reason (Optional):</label>
+          <input type="text" name="emergency_note" class="form-control" placeholder="e.g. Feeling dizzy, need immediate help">
+        </div>
+        <div class="modal-actions-sos">
+          <button type="button" class="btn btn-secondary-lg" onclick="closeSosModal()">Cancel</button>
+          <button type="submit" class="btn btn-danger-lg"><i class="fa-solid fa-paper-plane"></i> ALERT ALL FAMILY MEMBERS</button>
+        </div>
+      </form>
+      
+      <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #fee2e2;">
+        <p style="font-size: 0.9rem; margin-bottom: 8px; font-weight: bold; color: #991b1b;">Need Immediate Emergency Transport?</p>
+        <a href="{{ url_for('ambulance_service') }}" class="btn btn-primary-full" style="background-color: #b91c1c;">
+          <i class="fa-solid fa-truck-medical"></i> Dispatch Emergency Ambulance with Live GPS Tracking
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION PREVIEW MODAL (IN-APP EMAIL VIEWER) -->
+  <div class="modal-backdrop" id="notifPreviewModal" style="display:none;">
+    <div class="modal-card modal-email-preview animate-scale-up">
+      <div class="modal-header">
+        <h3 id="previewSubject"><i class="fa-solid fa-envelope-open-text"></i> Email Alert Preview</h3>
+        <button class="close-btn" onclick="closeNotifModal()">&times;</button>
+      </div>
+      <div class="preview-meta">
+        <p><strong>Recipient:</strong> <span id="previewRecipient"></span> | <strong>Status:</strong> <span id="previewStatus" class="badge"></span></p>
+        <p><strong>Dispatched:</strong> <span id="previewDate"></span></p>
+      </div>
+      <div class="email-sandbox-frame" id="previewFrameContainer">
+        <!-- Rendered HTML email appears here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="closeNotifModal()">Close Preview</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="app-footer">
+    <div class="container footer-content">
+      <div class="footer-left">
+        <p><strong>ElderCare Platform</strong> — Collaborative, accessible medication & appointment ecosystem.</p>
+        <p class="text-muted">Proactive email monitors active 24/7. Senior-friendly voice & high-contrast accessibility.</p>
+      </div>
+      <div class="footer-right">
+        <button class="btn btn-sm-outline" onclick="runProactiveCheckNow()">
+          <i class="fa-solid fa-arrows-rotate"></i> Scan Reminders Now
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

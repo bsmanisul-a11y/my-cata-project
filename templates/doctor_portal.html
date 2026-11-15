@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+
+{% block title %}Doctor & Clinical Admin Portal — ElderCare Platform{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+
+  <!-- DOCTOR HEADER -->
+  <div class="doctor-portal-banner">
+    <div class="doctor-badge-row">
+      <span class="badge-role-doctor"><i class="fa-solid fa-user-doctor"></i> Attending Physician & Clinical Administrator</span>
+      <span class="live-dot" title="Active Session"></span>
+    </div>
+    
+    <div class="doctor-banner-flex">
+      <div>
+        <h1 class="doctor-title">{{ current_user.name if current_user else 'Dr. Robert Evans, MD' }}</h1>
+        <p class="doctor-sub">
+          <strong>Specialty:</strong> {{ current_user.specialty or 'Cardiology & Internal Medicine' }} &bull;
+          <strong>Affiliation:</strong> {{ current_user.hospital_affiliation or 'St. Jude Heart & Vascular Pavilion' }} &bull;
+          <strong>License:</strong> {{ current_user.license_no or 'MED-IL-89421-C' }}
+        </p>
+      </div>
+
+      <!-- Patient Selector Dropdown -->
+      <div class="doctor-patient-selector">
+        <label><i class="fa-solid fa-bed-pulse"></i> Selecting Patient Profile:</label>
+        <select class="form-control patient-select-dropdown" onchange="window.location.href='/switch-profile/' + this.value">
+          {% for p in all_patients %}
+          <option value="{{ p.id }}" {% if active_profile and p.id == active_profile.id %}selected{% endif %}>
+            {{ p.full_name }} (Age {{ p.age or 'N/A' }} &bull; Passcode: {{ p.family_passcode }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- PATIENT SNAPSHOT STRIP -->
+  <div class="patient-snapshot-strip">
+    <div class="snapshot-col">
+      <span class="snapshot-label">Active Patient</span>
+      <strong>{{ profile.full_name }}</strong> (Age {{ profile.age }}, Blood {{ profile.blood_group }})
+    </div>
+    <div class="snapshot-col">
+      <span class="snapshot-label">Allergies</span>
+      <span class="text-danger font-bold">{{ profile.allergies }}</span>
+    </div>
+    <div class="snapshot-col">
+      <span class="snapshot-label">Chronic Conditions</span>
+      <span>{{ profile.chronic_conditions }}</span>
+    </div>
+    <div class="snapshot-col">
+      <span class="snapshot-label">Emergency Contact</span>
+      <span>{{ profile.emergency_contact_name }} ({{ profile.emergency_contact_phone }})</span>
+    </div>
+  </div>
+
+  <!-- DOCTOR WORKSPACE GRID -->
+  <div class="doctor-actions-grid" style="margin-top: 28px;">
+
+    <!-- 1. PRESCRIPTION & MEDICATION UPDATES -->
+    <div class="card-panel">
+      <div class="panel-header">
+        <div>
+          <h3><i class="fa-solid fa-prescription-bottle-medical text-blue"></i> Prescribe & Update Medications</h3>
+          <p class="text-muted text-sm">Change an existing medicine or prescription, update instructions, or prescribe a new medication.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        
+        <!-- Existing Meds Quick-Update Table -->
+        <h4 style="margin-bottom: 12px; font-size: 1rem;"><i class="fa-solid fa-list-check"></i> Current Prescriptions ({{ meds|length }})</h4>
+        <div class="table-responsive" style="margin-bottom: 24px;">
+          <table class="table-modern">
+            <thead>
+              <tr>
+                <th>Medicine</th>
+                <th>Dosage</th>
+                <th>Instructions</th>
+                <th>Update</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in meds %}
+              <tr>
+                <td><strong>{{ m.name }}</strong> ({{ m.form }})</td>
+                <td>{{ m.dosage }}</td>
+                <td><small>{{ m.instructions or '-' }}</small></td>
+                <td>
+                  <button type="button" class="btn btn-xs-outline doctor-edit-med-btn"
+                    data-med-id="{{ m.id }}"
+                    data-med-name="{{ m.name }}"
+                    data-med-dosage="{{ m.dosage }}"
+                    data-med-form="{{ m.form }}"
+                    data-med-instructions="{{ m.instructions or '' }}"
+                    data-med-purpose="{{ m.purpose or '' }}">
+                    <i class="fa-solid fa-pen-to-square"></i> Modify
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Prescribe New Medicine Form -->
+        <div style="background: #f8fafc; padding: 18px; border-radius: 10px; border: 1px solid #e2e8f0;">
+          <h4 style="margin-top: 0; font-size: 1rem; color: #1e3a8a;"><i class="fa-solid fa-plus-circle"></i> Prescribe New Medication</h4>
+          <form action="{{ url_for('doctor_portal') }}" method="POST">
+            <input type="hidden" name="action" value="doctor_update_med">
+            
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Medication Name *</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Amlodipine, Losartan" required>
+              </div>
+              <div class="form-group">
+                <label>Prescribed Dosage *</label>
+                <input type="text" name="dosage" class="form-control" placeholder="e.g. 5 mg, 10 mg" required>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Form</label>
+                <select name="form" class="form-control">
+                  <option value="Pill">Pill / Tablet</option>
+                  <option value="Capsule">Capsule</option>
+                  <option value="Liquid">Liquid</option>
+                  <option value="Inhaler">Inhaler</option>
+                  <option value="Injection">Injection</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Visual Color & Shape</label>
+                <input type="text" name="color_shape" class="form-control" placeholder="e.g. White Round, Pink Oval" value="White Round">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Doctor's Administration Instructions *</label>
+              <input type="text" name="instructions" class="form-control" placeholder="e.g. Take once daily after breakfast. Rise slowly if dizzy." required>
+            </div>
+
+            <div class="form-group">
+              <label>Indication / Purpose</label>
+              <input type="text" name="purpose" class="form-control" placeholder="e.g. Blood Pressure Regulation">
+            </div>
+
+            <div class="form-group">
+              <label>Daily Timeslots:</label>
+              <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                <label class="checkbox-label"><input type="checkbox" name="time_slots" value="Morning" checked> Morning (08:00)</label>
+                <label class="checkbox-label"><input type="checkbox" name="time_slots" value="Afternoon"> Afternoon (13:00)</label>
+                <label class="checkbox-label"><input type="checkbox" name="time_slots" value="Evening"> Evening (19:00)</label>
+                <label class="checkbox-label"><input type="checkbox" name="time_slots" value="Bedtime"> Bedtime (21:30)</label>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+              <i class="fa-solid fa-check"></i> Prescribe & Notify Patient
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 2. SCHEDULE NEXT DOCTOR VISIT & IN-CLINIC VITALS -->
+    <div class="card-panel">
+      <div class="panel-header">
+        <div>
+          <h3><i class="fa-solid fa-calendar-plus text-purple"></i> Schedule Next Doctor Visit</h3>
+          <p class="text-muted text-sm">Patient and Care Circle will immediately receive email updates with appointment details.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        
+        <form action="{{ url_for('doctor_portal') }}" method="POST">
+          <input type="hidden" name="action" value="doctor_schedule_visit">
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Next Visit Date *</label>
+              <input type="date" name="appointment_date" id="doctorApptDate" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Consultation Time *</label>
+              <input type="time" name="appointment_time" class="form-control" value="10:30" required>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Clinic / Pavilion</label>
+              <input type="text" name="clinic_name" class="form-control" value="St. Jude Heart & Vascular Pavilion, Suite 402" required>
+            </div>
+            <div class="form-group">
+              <label>Specialty Department</label>
+              <input type="text" name="specialty" class="form-control" value="Cardiology & Internal Medicine" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Location Address (For Uber & Patient Navigation)</label>
+            <input type="text" name="location_address" class="form-control" value="450 Medical Center Blvd, Chicago, IL" required>
+          </div>
+
+          <div class="form-group">
+            <label>Preparation & Fasting Instructions for Patient</label>
+            <textarea name="preparation_notes" class="form-control" rows="2" placeholder="e.g. Fast 12 hours prior to visit for lipid blood testing. Bring all current pill bottles."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="background-color: var(--purple);">
+            <i class="fa-solid fa-calendar-check"></i> Confirm Next Visit & Dispatch Patient Alert
+          </button>
+        </form>
+
+        <!-- IN-OFFICE CLINICAL VITALS RECORDING -->
+        <div style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+          <h4 style="margin-top:0; color: #15803d;"><i class="fa-solid fa-stethoscope"></i> Log In-Office Examination Vitals</h4>
+          <p class="text-muted text-sm">Syncs directly to the patient's vitals comparison graph.</p>
+          
+          <form action="{{ url_for('doctor_portal') }}" method="POST">
+            <input type="hidden" name="action" value="doctor_log_vitals">
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Systolic BP (mmHg)</label>
+                <input type="number" name="systolic_bp" class="form-control" placeholder="120" min="60" max="250" required>
+              </div>
+              <div class="form-group">
+                <label>Diastolic BP (mmHg)</label>
+                <input type="number" name="diastolic_bp" class="form-control" placeholder="80" min="40" max="150" required>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Blood Glucose (mg/dL)</label>
+                <input type="number" step="0.1" name="blood_glucose" class="form-control" placeholder="110">
+              </div>
+              <div class="form-group">
+                <label>Heart Rate (BPM)</label>
+                <input type="number" name="heart_rate" class="form-control" placeholder="72">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Doctor's Clinical Impression / Note</label>
+              <input type="text" name="notes" class="form-control" placeholder="e.g. Blood pressure well-controlled on Lisinopril. Lungs clear.">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="background-color: #15803d;">
+              <i class="fa-solid fa-heart-pulse"></i> Record Clinical Vitals
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- UPLOAD MEDICAL REPORT SECTION -->
+  <div class="card-panel" style="margin-top: 32px;">
+    <div class="panel-header">
+      <div>
+        <h3><i class="fa-solid fa-file-arrow-up text-blue"></i> Upload Medical Diagnostic Report</h3>
+        <p class="text-muted text-sm">Upload lab test results, ECG tracings, prescriptions, or imaging reports accessible by the patient and family.</p>
+      </div>
+    </div>
+    <div class="panel-body">
+      
+      <form action="{{ url_for('doctor_portal') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="action" value="upload_report">
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Report Title *</label>
+            <input type="text" name="title" class="form-control" placeholder="e.g. 12-Lead ECG Report, Comprehensive Metabolic Panel, Holter Monitor" required>
+          </div>
+          <div class="form-group">
+            <label>Report Category *</label>
+            <select name="report_type" class="form-control">
+              <option value="Lab Test">Lab Test Panel</option>
+              <option value="ECG">ECG / Cardiac Rhythm</option>
+              <option value="Prescription">Prescription Order</option>
+              <option value="Imaging">Imaging / Radiology</option>
+              <option value="Doctor Note">Clinical Consultation Note</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Attach File / Document (PDF, Image, or Scanned Report):</label>
+          <input type="file" name="report_file" class="form-control" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx">
+          <small class="form-hint">Optional: Attach the raw lab PDF/image or summarize below.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Diagnostic Findings & Clinical Summary *</label>
+          <textarea name="summary_findings" class="form-control" rows="3" placeholder="e.g. Total cholesterol: 184 mg/dL. HDL: 52 mg/dL. Normal renal function. Sinus rhythm with stable baseline." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Doctor's Recommendations & Follow-Up Plan *</label>
+          <textarea name="doctor_recommendations" class="form-control" rows="2" placeholder="e.g. Continue Lisinopril 10mg. Reduce dietary sodium. Recheck in 6 months." required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Upload Report & Notify Patient
+        </button>
+      </form>
+
+      <!-- Already Uploaded Reports Table -->
+      <div style="margin-top: 36px;">
+        <h4 style="margin-bottom: 14px;"><i class="fa-solid fa-folder-open text-blue"></i> Uploaded Reports for {{ profile.full_name }} ({{ reports|length }})</h4>
+        <div class="table-responsive">
+          <table class="table-modern">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Report Title</th>
+                <th>Type</th>
+                <th>Doctor</th>
+                <th>Findings Summary</th>
+                <th>Document</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in reports %}
+              <tr>
+                <td><strong>{{ r.report_date }}</strong></td>
+                <td><strong>{{ r.title }}</strong></td>
+                <td><span class="badge-tag tag-muted">{{ r.report_type }}</span></td>
+                <td>{{ r.doctor_name }}</td>
+                <td><small>{{ r.summary_findings[:80] }}...</small></td>
+                <td>
+                  {% if r.file_name %}
+                    <a href="{{ url_for('download_report', filename=r.file_name) }}" class="btn btn-xs-outline" target="_blank">
+                      <i class="fa-solid fa-download"></i> Download
+                    </a>
+                  {% else %}
+                    <span class="text-muted text-sm">Summary Text</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- DOCTOR EDIT MEDICATION MODAL -->
+<div class="modal-backdrop" id="doctorEditMedModal" style="display:none;">
+  <div class="modal-card animate-scale-up">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-pen-to-square text-blue"></i> Adjust Prescription: <span id="docMedName"></span></h3>
+      <button class="close-btn" onclick="closeDoctorEditMedModal()">&times;</button>
+    </div>
+    <form action="{{ url_for('doctor_portal') }}" method="POST">
+      <input type="hidden" name="action" value="doctor_update_med">
+      <input type="hidden" name="med_id" id="docMedId">
+
+      <div class="form-group">
+        <label>Medication Name:</label>
+        <input type="text" name="name" id="docMedNameInput" class="form-control" required>
+      </div>
+
+      <div class="form-group">
+        <label>Medication Form:</label>
+        <input type="text" name="form" id="docMedForm" class="form-control" required>
+      </div>
+
+      <div class="form-group">
+        <label>New Prescribed Dosage:</label>
+        <input type="text" name="dosage" id="docMedDosage" class="form-control" required>
+      </div>
+
+      <div class="form-group">
+        <label>Updated Administration Instructions:</label>
+        <textarea name="instructions" id="docMedInstructions" class="form-control" rows="3" required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Therapeutic Purpose:</label>
+        <input type="text" name="purpose" id="docMedPurpose" class="form-control">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeDoctorEditMedModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes & Notify Patient</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openDoctorEditMedModal(id, name, dosage, form, instructions, purpose) {
+    document.getElementById('docMedId').value = id;
+    document.getElementById('docMedName').innerText = name;
+    document.getElementById('docMedNameInput').value = name;
+    document.getElementById('docMedForm').value = form;
+    document.getElementById('docMedDosage').value = dosage;
+    document.getElementById('docMedInstructions').value = instructions;
+    document.getElementById('docMedPurpose').value = purpose;
+    document.getElementById('doctorEditMedModal').style.display = 'flex';
+  }
+
+  document.querySelectorAll('.doctor-edit-med-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const med = button.dataset;
+      openDoctorEditMedModal(
+        med.medId,
+        med.medName,
+        med.medDosage,
+        med.medForm,
+        med.medInstructions,
+        med.medPurpose
+      );
+    });
+  });
+
+  function closeDoctorEditMedModal() {
+    document.getElementById('doctorEditMedModal').style.display = 'none';
+  }
+
+  // Pre-fill next appointment date to 14 days from now
+  document.addEventListener('DOMContentLoaded', () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    const dateInput = document.getElementById('doctorApptDate');
+    if (dateInput) dateInput.value = d.toISOString().split('T')[0];
+  });
+</script>
+{% endblock %}

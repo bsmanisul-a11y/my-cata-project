@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}ElderCare — Smart Elderly Care & Medication Management Platform{% endblock %}
+
+{% block content %}
+<div class="landing-hero">
+  <div class="container hero-grid">
+    <div class="hero-left">
+      <div class="hero-badge">
+        <i class="fa-solid fa-shield-heart"></i> Smart Connected Healthcare Ecosystem
+      </div>
+      <h1 class="hero-title">
+        Empowering Seniors. <br>
+        <span class="text-gradient">Keeping Families Informed.</span>
+      </h1>
+      <p class="hero-description">
+        A proactive healthcare and medication management platform that bridges the gap between elderly loved ones, caretakers, and family members. Ensure doses are never missed, doctor appointments are kept, and care is collaborative through secure passcode access.
+      </p>
+
+      <div class="hero-cta-group">
+        <a href="{{ url_for('passcode_access') }}" class="btn btn-hero-primary">
+          <i class="fa-solid fa-key"></i> Connect with Passcode
+        </a>
+        <a href="{{ url_for('login') }}" class="btn btn-hero-secondary">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In (Senior PIN / Email)
+        </a>
+        <a href="{{ url_for('login') }}#doctor" class="btn btn-hero-secondary">
+          <i class="fa-solid fa-user-doctor"></i> Doctor Portal
+        </a>
+      </div>
+
+    </div>
+
+    <div class="hero-right">
+      <div class="hero-preview-card">
+        <div class="preview-header">
+          <div class="preview-user">
+            <span class="preview-avatar"><i class="fa-solid fa-lock"></i></span>
+            <div>
+              <div class="preview-name">Private patient dashboard</div>
+              <div class="preview-status">Sign in to view protected information</div>
+            </div>
+          </div>
+          <span class="pill-badge pill-green"><i class="fa-solid fa-shield-halved"></i> Login Required</span>
+        </div>
+
+        <div class="preview-pillbox">
+          <div class="preview-slot">
+            <div class="slot-title"><i class="fa-solid fa-pills"></i> Medication support</div>
+            <div class="slot-items">
+              <div class="appointment-chip">Schedules, reminders and refill requests</div>
+            </div>
+          </div>
+
+          <div class="preview-slot">
+            <div class="slot-title"><i class="fa-solid fa-people-group"></i> Care coordination</div>
+            <div class="slot-items">
+              <div class="appointment-chip">Appointments, reports and caregiver updates</div>
+            </div>
+          </div>
+
+          <div class="preview-slot">
+            <div class="slot-title"><i class="fa-solid fa-heart-pulse"></i> Health tracking</div>
+            <div class="slot-items">
+              <div class="appointment-chip">Vitals and emergency tools</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-footer-action">
+          <div class="voice-hint">
+            <i class="fa-solid fa-lock"></i> Patient records are available after sign-in
+          </div>
+          <span class="badge-sos"><i class="fa-solid fa-shield-heart"></i> Private by design</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KEY INNOVATIONS SECTION -->
+<section class="features-section">
+  <div class="container">
+    <div class="section-heading text-center">
+      <span class="subheading">Beyond Basic Reminders</span>
+      <h2>Designed for Human Dignity & Clinical Reliability</h2>
+      <p>Elder care requires a thoughtful balance between senior independence and family peace of mind.</p>
+    </div>
+
+    <div class="features-grid">
+      <!-- Feature 1 -->
+      <div class="feature-card">
+        <div class="feature-icon icon-blue"><i class="fa-solid fa-key"></i></div>
+        <h3>Secure Passcode Ecosystem</h3>
+        <p>No complicated passwords for seniors or relatives. A single 6-digit Care Circle Passcode connects family members, adult children, and visiting nurses to the senior's healthcare profile.</p>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="feature-card">
+        <div class="feature-icon icon-red"><i class="fa-solid fa-envelope-circle-check"></i></div>
+        <h3>Proactive Email Reminders</h3>
+        <p>Automated background daemon tracks missed doses, upcoming pills, and doctor visits. If a dose is overdue by 30 minutes, urgent emails notify both the senior and their emergency contacts.</p>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="feature-card">
+        <div class="feature-icon icon-amber"><i class="fa-solid fa-ear-listen"></i></div>
+        <h3>Text-to-Speech Voice Assistant</h3>
+        <p>Seniors with failing eyesight or arthritis can simply press "Listen to Schedule" to hear their medicines read aloud. Natural voice synthesis gives clear audio prompts for each pill.</p>
+      </div>
+
+      <!-- Feature 4 -->
+      <div class="feature-card">
+        <div class="feature-icon icon-green"><i class="fa-solid fa-shield-halved"></i></div>
+        <h3>Clinical Drug Interaction Intelligence</h3>
+        <p>Real-time cross-referencing of all active medications warns against dangerous drug-to-drug interactions (e.g. Warfarin + Aspirin) and food cautions (e.g. Grapefruit with Statins).</p>
+      </div>
+
+      <!-- Feature 5 -->
+      <div class="feature-card">
+        <div class="feature-icon icon-purple"><i class="fa-solid fa-car-side"></i></div>
+        <h3>Appointment Transport Coordination</h3>
+        <p>Doctor appointments track transportation status, clinic directions, and which family member is accompanying the senior, plus preparation instructions like fasting.</p>
+      </div>
+
+      <!-- Feature 6 -->
+      <div class="feature-card">
+        <div class="feature-icon icon-teal"><i class="fa-solid fa-clipboard-user"></i></div>
+        <h3>Caregiver Handoff Board</h3>
+        <p>A collaborative notes journal where daughters, sons, and home nurses share daily updates, meal observations, and doctor visit feedback in one place.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS STEP-BY-STEP -->
+<section class="how-it-works-section">
+  <div class="container">
+    <div class="section-heading text-center">
+      <span class="subheading">Simple & Accessible</span>
+      <h2>How The Shared Care Ecosystem Operates</h2>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <h4>Create Profile & Passcode</h4>
+        <p>Register the elderly profile once. A unique Care Circle passcode and senior PIN are generated automatically.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <h4>Setup Medication Routine</h4>
+        <p>Add medications with pill appearance tags, frequency, and stock counts. The visual 4-slot pillbox organizes each day automatically.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <h4>Proactive Alerts & Peace of Mind</h4>
+        <p>The system monitors schedules 24/7. When doses are taken, adherence metrics update. If a dose is missed, proactive email alerts notify the care circle.</p>
+      </div>
+    </div>
+
+    <div class="cta-bottom text-center">
+      <a href="{{ url_for('register') }}" class="btn btn-hero-primary">Get Started Free</a>
+      <a href="{{ url_for('passcode_access') }}" class="btn btn-hero-secondary">Join Existing Profile</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

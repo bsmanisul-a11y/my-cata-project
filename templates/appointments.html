@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Medical Appointments — ElderCare Platform{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header-row">
+    <div>
+      <span class="subheading">Healthcare Calendar</span>
+      <h1 class="page-title"><i class="fa-solid fa-calendar-check text-purple"></i> Doctor Appointments</h1>
+      <p class="text-muted">Coordinate upcoming clinic visits, transport assistance, and doctor preparation notes.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary" onclick="openAddApptModal()">
+        <i class="fa-solid fa-plus"></i> Schedule New Appointment
+      </button>
+    </div>
+  </div>
+
+  <!-- UPCOMING APPOINTMENTS SECTION -->
+  <div class="section-title-bar">
+    <h2><i class="fa-regular fa-clock"></i> Upcoming Doctor Visits ({{ upcoming|length }})</h2>
+  </div>
+
+  {% if upcoming %}
+    <div class="appointments-grid">
+      {% for appt in upcoming %}
+      <div class="appointment-card animate-fade-in">
+        <div class="appt-card-header">
+          <div class="appt-doctor-info">
+            <span class="doctor-avatar"><i class="fa-solid fa-user-doctor"></i></span>
+            <div>
+              <h3 class="doctor-name">Dr. {{ appt.doctor_name }}</h3>
+              <span class="badge-specialty">{{ appt.specialty }}</span>
+            </div>
+          </div>
+          <div class="appt-countdown-badge">
+            <i class="fa-regular fa-bell"></i> {{ appt.relative_time }}
+          </div>
+        </div>
+
+        <div class="appt-card-body">
+          <div class="appt-info-item">
+            <i class="fa-regular fa-calendar text-muted"></i>
+            <div>
+              <strong>{{ appt.appointment_date }}</strong> at <strong>{{ appt.appointment_time }}</strong>
+            </div>
+          </div>
+
+          <div class="appt-info-item">
+            <i class="fa-solid fa-hospital text-muted"></i>
+            <div>
+              <strong>{{ appt.clinic_name or 'Clinic / Hospital' }}</strong>
+              <div class="text-muted text-sm">{{ appt.location_address or 'See doctor details' }}</div>
+            </div>
+          </div>
+
+          <!-- Transport & Accompanying Person Box -->
+          <div class="transport-box">
+            <div class="transport-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <span><i class="fa-solid fa-car"></i> <strong>Transportation:</strong> {{ appt.transport_status }}</span>
+              <!-- UBER GET RIDE BUTTON -->
+              <a href="https://www.uber.com/in/en/" target="_blank" class="btn-uber-ride" onclick="alert('Redirecting to Uber to arrange your ride to ' + '{{ appt.clinic_name or appt.location_address }}' + '!')">
+                <i class="fa-brands fa-uber"></i> <strong>Get Ride to Hospital (Uber)</strong> &rarr;
+              </a>
+            </div>
+            {% if appt.accompanying_person %}
+            <div class="accompanying-text" style="margin-top: 6px;">
+              <i class="fa-solid fa-user-group"></i> Accompanying: <strong>{{ appt.accompanying_person }}</strong>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Preparation Notes -->
+          {% if appt.preparation_notes %}
+          <div class="prep-notes-box">
+            <i class="fa-solid fa-notes-medical"></i> <strong>Preparation Instructions:</strong>
+            <p>{{ appt.preparation_notes }}</p>
+          </div>
+          {% endif %}
+
+          <!-- Doctor Summary Notes (if any) -->
+          {% if appt.doctor_summary_notes %}
+          <div class="doctor-notes-box">
+            <strong>Post-Visit Doctor Notes:</strong>
+            <p>{{ appt.doctor_summary_notes }}</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="appt-card-footer">
+          <!-- Complete Appointment Form -->
+          <button type="button" class="btn btn-sm-outline" onclick="openCompleteApptModal({{ appt.id }}, 'Dr. {{ appt.doctor_name }}')">
+            <i class="fa-solid fa-clipboard-check"></i> Mark Completed / Add Notes
+          </button>
+
+          <!-- Cancel / Delete Form -->
+          <form action="{{ url_for('delete_appointment', appt_id=appt.id) }}" method="POST" onsubmit="return confirm('Cancel this appointment?');" style="display:inline;">
+            <button type="submit" class="btn btn-sm-danger">
+              <i class="fa-solid fa-xmark"></i> Cancel
+            </button>
+          </form>
+        </div>
+
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state-card">
+      <i class="fa-regular fa-calendar-xmark fa-3x text-muted"></i>
+      <h3>No Upcoming Appointments Scheduled</h3>
+      <p>Keep your healthcare team aligned by adding doctor visits and setting transport plans.</p>
+      <button type="button" class="btn btn-primary" onclick="openAddApptModal()">
+        <i class="fa-solid fa-plus"></i> Schedule an Appointment
+      </button>
+    </div>
+  {% endif %}
+
+  <!-- PAST / COMPLETED APPOINTMENTS -->
+  {% if past %}
+  <div class="card-panel" style="margin-top: 40px;">
+    <div class="panel-header">
+      <h3><i class="fa-solid fa-history"></i> Past & Completed Doctor Visits ({{ past|length }})</h3>
+    </div>
+    <div class="panel-body no-padding">
+      <div class="table-responsive">
+        <table class="table-modern">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Physician</th>
+              <th>Clinic</th>
+              <th>Status</th>
+              <th>Accompanying</th>
+              <th>Doctor Summary & Outcome</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in past %}
+            <tr>
+              <td><strong>{{ p.appointment_date }}</strong></td>
+              <td>Dr. {{ p.doctor_name }} ({{ p.specialty }})</td>
+              <td>{{ p.clinic_name or '-' }}</td>
+              <td>
+                <span class="status-chip chip-{{ 'taken' if p.status == 'Completed' else 'missed' }}">
+                  {{ p.status }}
+                </span>
+              </td>
+              <td>{{ p.accompanying_person or '-' }}</td>
+              <td>{{ p.doctor_summary_notes or 'Routine consultation' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- ADD APPOINTMENT MODAL -->
+<div class="modal-backdrop" id="addApptModal" style="display:none;">
+  <div class="modal-card modal-lg animate-scale-up">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-calendar-plus text-purple"></i> Schedule Doctor Appointment</h3>
+      <button class="close-btn" onclick="closeAddApptModal()">&times;</button>
+    </div>
+
+    <form action="{{ url_for('appointments') }}" method="POST">
+      <input type="hidden" name="action" value="add_appointment">
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="doctor_name">Doctor's Name *</label>
+          <input type="text" id="doctor_name" name="doctor_name" class="form-control" placeholder="e.g. Robert Evans" required>
+        </div>
+
+        <div class="form-group">
+          <label for="specialty">Specialty / Department *</label>
+          <input type="text" id="specialty" name="specialty" class="form-control" placeholder="e.g. Cardiology, Ophthalmology, General Medicine" required>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="clinic_name">Clinic or Hospital Name</label>
+          <input type="text" id="clinic_name" name="clinic_name" class="form-control" placeholder="e.g. Heart Health Pavilion, Suite 402">
+        </div>
+
+        <div class="form-group">
+          <label for="location_address">Address / Directions</label>
+          <input type="text" id="location_address" name="location_address" class="form-control" placeholder="e.g. 450 Medical Center Blvd, Chicago, IL">
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="appointment_date">Appointment Date *</label>
+          <input type="date" id="appointment_date" name="appointment_date" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="appointment_time">Appointment Time *</label>
+          <input type="time" id="appointment_time" name="appointment_time" class="form-control" required value="10:00">
+        </div>
+      </div>
+
+      <!-- Transportation Assistance Section -->
+      <div class="form-section-divider">
+        <span><i class="fa-solid fa-car-side"></i> Transportation & Caregiver Coordination</span>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="transport_status">Transportation Plan</label>
+          <select id="transport_status" name="transport_status" class="form-control">
+            <option value="Not Needed">Not Needed (Patient can drive or walk)</option>
+            <option value="Arranged by Family" selected>Arranged by Family Member</option>
+            <option value="Needs Ride / Volunteer">Needs Ride / Volunteer Assistance</option>
+            <option value="Medical Cab Booked">Medical Transport / Cab Booked</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="accompanying_person">Accompanying Person</label>
+          <input type="text" id="accompanying_person" name="accompanying_person" class="form-control" placeholder="e.g. Son David, Nurse Maria">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="preparation_notes">Preparation Instructions (Fasting, Reports to bring)</label>
+        <textarea id="preparation_notes" name="preparation_notes" class="form-control" rows="2" placeholder="e.g. Fast 12 hours before morning blood test. Bring recent blood pressure log."></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeAddApptModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Appointment & Set Reminders</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- COMPLETE APPOINTMENT MODAL -->
+<div class="modal-backdrop" id="completeApptModal" style="display:none;">
+  <div class="modal-card animate-scale-up">
+    <div class="modal-header">
+      <h3>Complete Visit: <span id="completeDoctorName"></span></h3>
+      <button class="close-btn" onclick="closeCompleteApptModal()">&times;</button>
+    </div>
+    <form action="{{ url_for('appointments') }}" method="POST">
+      <input type="hidden" name="action" value="update_status">
+      <input type="hidden" name="appt_id" id="completeApptId">
+      <input type="hidden" name="status" value="Completed">
+
+      <div class="form-group">
+        <label>Doctor's Findings & Medication Updates:</label>
+        <textarea name="doctor_summary_notes" class="form-control" rows="4" placeholder="e.g. Blood pressure is well managed. Doctor renewed Lisinopril for 90 days. Followup in 6 months."></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeCompleteApptModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save as Completed</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openAddApptModal() {
+    // Set default date to tomorrow
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    document.getElementById('appointment_date').value = d.toISOString().split('T')[0];
+    document.getElementById('addApptModal').style.display = 'flex';
+  }
+  function closeAddApptModal() {
+    document.getElementById('addApptModal').style.display = 'none';
+  }
+  function openCompleteApptModal(apptId, docName) {
+    document.getElementById('completeApptId').value = apptId;
+    document.getElementById('completeDoctorName').innerText = docName;
+    document.getElementById('completeApptModal').style.display = 'flex';
+  }
+  function closeCompleteApptModal() {
+    document.getElementById('completeApptModal').style.display = 'none';
+  }
+</script>
+{% endblock %}

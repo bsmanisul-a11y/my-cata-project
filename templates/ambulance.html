@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Emergency Ambulance Service & Live Tracking — ElderCare Platform{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header-row">
+    <div>
+      <span class="subheading text-danger"><i class="fa-solid fa-truck-medical"></i> Rapid Medical Response</span>
+      <h1 class="page-title"><i class="fa-solid fa-ambulance text-red"></i> Emergency Ambulance Service</h1>
+      <p class="text-muted">High-priority emergency transport dispatch with real-time GPS status and paramedic communication.</p>
+    </div>
+  </div>
+
+  {% if ambulance and ambulance.status != 'completed' and ambulance.status != 'cancelled' %}
+  <!-- ACTIVE AMBULANCE TRACKING DASHBOARD -->
+  <div class="ambulance-tracker-card animate-scale-up">
+    
+    <!-- TOP STATUS HEADER WITH FLASHING SIREN -->
+    <div class="tracker-header">
+      <div class="siren-light-container">
+        <div class="siren-beacon siren-red"></div>
+        <div class="siren-beacon siren-blue"></div>
+      </div>
+      <div>
+        <div class="tracker-status-label">
+          {% if ambulance.status == 'dispatched' %}
+            <span class="badge-status-lg status-dispatched"><i class="fa-solid fa-spinner fa-spin"></i> AMBULANCE ON THE WAY (DISPATCHED)</span>
+          {% elif ambulance.status == 'nearby' %}
+            <span class="badge-status-lg status-nearby"><i class="fa-solid fa-bell-concierge fa-shake"></i> AMBULANCE NEARBY (APPROACHING NOW)</span>
+          {% elif ambulance.status == 'arrived' %}
+            <span class="badge-status-lg status-arrived"><i class="fa-solid fa-circle-check"></i> AMBULANCE ARRIVED AT RESIDENCE</span>
+          {% endif %}
+        </div>
+        <h2 class="tracker-title">
+          {% if ambulance.status == 'dispatched' %}
+            Paramedics En Route &bull; Estimated Arrival in <span class="eta-highlight" id="etaDisplay">{{ ambulance.eta_minutes }} Mins</span>
+          {% elif ambulance.status == 'nearby' %}
+            Paramedics Approaching Your Street! (~2 Mins)
+          {% elif ambulance.status == 'arrived' %}
+            Paramedics Have Arrived at {{ ambulance.pickup_address }}!
+          {% endif %}
+        </h2>
+      </div>
+
+      <!-- Actions: Step forward or Close Call -->
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <form action="{{ url_for('advance_ambulance_status', req_id=ambulance.id) }}" method="POST" style="margin: 0;">
+          <button type="submit" class="btn btn-sm-outline" title="Simulate vehicle moving forward">
+            <i class="fa-solid fa-forward-step"></i> Next Tracking Phase &rarr;
+          </button>
+        </form>
+        <form action="{{ url_for('dismiss_ambulance', req_id=ambulance.id) }}" method="POST" style="margin: 0;">
+          <button type="submit" class="btn btn-sm-outline" style="color: #15803d; border-color: #86efac;" title="Complete and dismiss this ambulance request">
+            <i class="fa-solid fa-circle-check"></i> Complete & Close
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 3-STAGE PROGRESS BAR -->
+    <div class="tracking-stepper">
+      <!-- Stage 1 -->
+      <div class="stepper-step {% if ambulance.status in ['dispatched', 'nearby', 'arrived'] %}completed{% endif %}">
+        <div class="step-icon"><i class="fa-solid fa-truck-medical"></i></div>
+        <div class="step-label">1. Dispatched (On the Way)</div>
+        <small class="text-muted">Unit 402 en route</small>
+      </div>
+      <div class="stepper-line {% if ambulance.status in ['nearby', 'arrived'] %}active{% endif %}"></div>
+
+      <!-- Stage 2 -->
+      <div class="stepper-step {% if ambulance.status in ['nearby', 'arrived'] %}completed{% elif ambulance.status == 'dispatched' %}current{% endif %}">
+        <div class="step-icon"><i class="fa-solid fa-location-crosshairs"></i></div>
+        <div class="step-label">2. Nearby</div>
+        <small class="text-muted">Sirens audible &bull; ~2 Mins</small>
+      </div>
+      <div class="stepper-line {% if ambulance.status == 'arrived' %}active{% endif %}"></div>
+
+      <!-- Stage 3 -->
+      <div class="stepper-step {% if ambulance.status == 'arrived' %}completed arrived-pulse{% endif %}">
+        <div class="step-icon"><i class="fa-solid fa-house-chimney-medical"></i></div>
+        <div class="step-label">3. Arrived at Residence</div>
+        <small class="text-muted">Doorbell / Meet Paramedics</small>
+      </div>
+    </div>
+
+    <!-- RADAR MAP & VEHICLE TELEMETRY VISUAL -->
+    <div class="telemetry-grid">
+      <div class="radar-box">
+        <div class="radar-sweep"></div>
+        <div class="radar-center-point">
+          <i class="fa-solid fa-house-user"></i>
+          <span class="radar-point-label">Patient Home</span>
+        </div>
+        <div class="radar-ambulance-point {% if ambulance.status == 'nearby' %}nearby{% elif ambulance.status == 'arrived' %}arrived{% endif %}">
+          <i class="fa-solid fa-ambulance"></i>
+          <span class="radar-point-label">{{ ambulance.vehicle_number }}</span>
+        </div>
+      </div>
+
+      <!-- PARAMEDIC & DISPATCH DETAILS -->
+      <div class="paramedic-info-card">
+        <h3><i class="fa-solid fa-user-shield text-blue"></i> On-Duty Paramedic Team</h3>
+        
+        <div class="paramedic-row">
+          <span class="info-label"><i class="fa-solid fa-id-badge"></i> Paramedic:</span>
+          <span class="info-val"><strong>{{ ambulance.paramedic_name }}</strong></span>
+        </div>
+
+        <div class="paramedic-row">
+          <span class="info-label"><i class="fa-solid fa-truck"></i> Vehicle Unit:</span>
+          <span class="info-val"><strong>{{ ambulance.vehicle_number }}</strong></span>
+        </div>
+
+        <div class="paramedic-row">
+          <span class="info-label"><i class="fa-solid fa-phone"></i> Direct Call:</span>
+          <span class="info-val"><a href="tel:{{ ambulance.paramedic_phone }}" class="phone-link"><i class="fa-solid fa-phone-volume"></i> {{ ambulance.paramedic_phone }}</a></span>
+        </div>
+
+        <div class="paramedic-row">
+          <span class="info-label"><i class="fa-solid fa-location-dot"></i> Pickup Address:</span>
+          <span class="info-val">{{ ambulance.pickup_address }}</span>
+        </div>
+
+        <div class="paramedic-row">
+          <span class="info-label"><i class="fa-solid fa-hospital"></i> Destination:</span>
+          <span class="info-val text-blue font-bold">{{ ambulance.hospital_destination }}</span>
+        </div>
+
+        <!-- EMERGENCY AUDIO SIREN SIMULATOR -->
+        <div class="siren-sound-test-box">
+          <button type="button" class="btn btn-sm-outline" onclick="playAmbulanceSiren()">
+            <i class="fa-solid fa-volume-high"></i> Play Audible Alert Siren
+          </button>
+          <small class="text-muted">Simulates approaching emergency beacon audio</small>
+        </div>
+
+        <div class="action-buttons-emergency">
+          <a href="tel:911" class="btn btn-danger btn-lg"><i class="fa-solid fa-phone-flip"></i> Call 911 / 108 Emergency Dispatch</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {% else %}
+  <!-- DISPATCH NEW AMBULANCE FORM -->
+  <div class="card-panel animate-scale-up" style="max-width: 750px; margin: 0 auto; border: 2px solid #ef4444;">
+    <div class="panel-header" style="background: #fef2f2; border-bottom: 2px solid #fca5a5;">
+      <div>
+        <h3 style="color: #991b1b;"><i class="fa-solid fa-triangle-exclamation"></i> Request Immediate Emergency Ambulance</h3>
+        <p class="text-muted text-sm">Dispatches high-priority medical transport with real-time GPS tracking and Care Circle notification.</p>
+      </div>
+    </div>
+    <div class="panel-body">
+      
+      <form action="{{ url_for('request_ambulance') }}" method="POST">
+        <div class="form-group">
+          <label><i class="fa-solid fa-location-dot text-red"></i> Patient Pickup Address *</label>
+          <input type="text" name="pickup_address" class="form-control" value="{{ profile.address or '742 Evergreen Terrace, Chicago, IL' }}" required>
+        </div>
+
+        <div class="form-group">
+          <label><i class="fa-solid fa-hospital text-blue"></i> Destination Hospital *</label>
+          <select name="hospital_destination" class="form-control">
+            <option value="St. Jude Emergency Medical Center" selected>St. Jude Emergency Medical Center (Level 1 Trauma)</option>
+            <option value="Northwestern Memorial Hospital">Northwestern Memorial Hospital</option>
+            <option value="University Care Hospital">University Care Hospital</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label><i class="fa-solid fa-notes-medical"></i> Nature of Emergency / Patient Symptoms</label>
+          <textarea name="notes" class="form-control" rows="3" placeholder="e.g. Severe chest tightness, shortness of breath, sudden fall, loss of consciousness..."></textarea>
+        </div>
+
+        <div class="emergency-summary-box">
+          <p><strong>Patient:</strong> {{ profile.full_name }} (Blood Group: {{ profile.blood_group }})</p>
+          <p><strong>Known Allergies:</strong> {{ profile.allergies }}</p>
+          <p><strong>Primary Emergency Contact:</strong> {{ profile.emergency_contact_name }} ({{ profile.emergency_contact_phone }})</p>
+        </div>
+
+        <button type="submit" class="btn btn-danger btn-lg" style="width: 100%; font-size: 1.2rem; padding: 16px;">
+          <i class="fa-solid fa-truck-medical"></i> DISPATCH EMERGENCY AMBULANCE NOW
+        </button>
+      </form>
+
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Web Audio API emergency siren synthesizer
+  function playAmbulanceSiren() {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sawtooth';
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+
+      // Pitch sweep simulation (ambulance siren)
+      const now = audioCtx.currentTime;
+      osc.frequency.setValueAtTime(650, now);
+      osc.frequency.linearRampToValueAtTime(950, now + 0.5);
+      osc.frequency.linearRampToValueAtTime(650, now + 1.0);
+      osc.frequency.linearRampToValueAtTime(950, now + 1.5);
+      osc.frequency.linearRampToValueAtTime(650, now + 2.0);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + 2.2);
+    } catch (e) {
+      console.log("Audio not supported:", e);
+    }
+  }
+
+  // Auto-play siren alert if ambulance is nearby
+  {% if ambulance and ambulance.status == 'nearby' %}
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(playAmbulanceSiren, 600);
+  });
+  {% endif %}
+</script>
+{% endblock %}

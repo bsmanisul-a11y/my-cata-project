@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}Today's Routine — ElderCare Dashboard{% endblock %}
+
+{% block content %}
+<div class="container dashboard-container">
+
+  <!-- TOP HERO WELCOME & ACCESSIBLE VOICE BANNER -->
+  <div class="dashboard-banner">
+    <div class="banner-content">
+      <div class="welcome-text">
+        <span class="greeting-time" id="greetingTime">Welcome back,</span>
+        <h1 class="senior-greeting-name">{{ profile.full_name }}</h1>
+        <p class="today-date-text">
+          <i class="fa-regular fa-calendar-days"></i> {{ now.strftime('%A, %B %d, %Y') }}
+          <span class="circle-passcode-tag" title="Passcode for family access">
+            Family PIN: <strong>{{ profile.family_passcode }}</strong>
+          </span>
+        </p>
+      </div>
+
+      <!-- VOICE ASSISTANT INTERACTIVE CONTROLS -->
+      <div class="voice-assistant-card">
+        <div class="voice-card-header">
+          <div class="voice-wave-icon" id="voiceWaveIcon">
+            <i class="fa-solid fa-volume-high"></i>
+          </div>
+          <div>
+            <strong>Audio Voice Assistant</strong>
+            <small>Listen to doses or speak a voice command</small>
+          </div>
+        </div>
+
+        <div class="voice-btn-group">
+          <button type="button" class="btn btn-voice-play" onclick="speakCurrentPageRoutine()">
+            <i class="fa-solid fa-play"></i> Listen to Today's Routine
+          </button>
+          <button type="button" class="btn btn-voice-mic" id="voiceMicBtn" onclick="toggleSpeechRecognition()" title="Voice command (e.g. 'Mark Metformin taken')">
+            <i class="fa-solid fa-microphone"></i> <span id="micLabel">Speak Command</span>
+          </button>
+        </div>
+        <div id="voiceFeedback" class="voice-feedback-bar" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLINICAL SAFETY ALERTS (IF ANY IDENTIFIED) -->
+  {% if safety_alerts %}
+  <div class="safety-alerts-wrapper animate-slide-down">
+    {% for alert in safety_alerts %}
+      <div class="alert-box alert-{{ alert.severity }}">
+        <div class="alert-box-icon">
+          <i class="fa-solid fa-shield-virus"></i>
+        </div>
+        <div class="alert-box-content">
+          <h4>{{ alert.title }}</h4>
+          <p>{{ alert.description }}</p>
+          <div class="alert-action-tip">
+            <strong><i class="fa-solid fa-user-doctor"></i> Clinical Guidance:</strong> {{ alert.action }}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- QUICK STATS & ADHERENCE STREAK STRIP -->
+  <div class="stats-overview-grid">
+    <!-- Today's Adherence Gauge -->
+    <div class="stat-card">
+      <div class="stat-icon-wrap icon-blue">
+        <i class="fa-solid fa-chart-pie"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Today's Adherence</span>
+        <div class="stat-value-group">
+          <span class="stat-number">{{ stats.today_rate }}%</span>
+          <span class="stat-sub">({{ stats.today_taken }} of {{ stats.today_total }} taken)</span>
+        </div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-fill" style="width: {{ stats.today_rate }}%;"></div>
+      </div>
+    </div>
+
+    <!-- 7-Day Adherence -->
+    <div class="stat-card">
+      <div class="stat-icon-wrap icon-green">
+        <i class="fa-solid fa-heart-circle-check"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">7-Day Consistency</span>
+        <div class="stat-value-group">
+          <span class="stat-number">{{ stats.rate_7d }}%</span>
+          <span class="stat-sub">Reliable therapy tracking</span>
+        </div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-fill fill-green" style="width: {{ stats.rate_7d }}%;"></div>
+      </div>
+    </div>
+
+    <!-- Adherence Streak -->
+    <div class="stat-card streak-card">
+      <div class="stat-icon-wrap icon-amber">
+        <i class="fa-solid fa-fire"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Adherence Streak</span>
+        <div class="stat-value-group">
+          <span class="stat-number text-amber">{{ stats.streak }} Days</span>
+          <span class="stat-sub">{% if stats.streak >= 3 %}🔥 Fantastic consistency!{% else %}Building daily habit!{% endif %}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Next Doctor Visit -->
+    <div class="stat-card">
+      <div class="stat-icon-wrap icon-purple">
+        <i class="fa-solid fa-user-doctor"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-label">Next Doctor Visit</span>
+        {% if upcoming_appts %}
+          <div class="stat-value-group">
+            <span class="stat-number-sm">Dr. {{ upcoming_appts[0].doctor_name }}</span>
+            <span class="stat-sub">{{ upcoming_appts[0].appointment_date }} ({{ upcoming_appts[0].appointment_time }})</span>
+          </div>
+        {% else %}
+          <div class="stat-value-group">
+            <span class="stat-sub">No appointments this week</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- TODAY'S VISUAL 4-COMPARTMENT PILLBOX -->
+  <section class="pillbox-section">
+    <div class="section-title-bar">
+      <div>
+        <h2><i class="fa-solid fa-capsules"></i> Today's Medication Routine</h2>
+        <p class="section-sub">Organized by time of day. Tap 'Mark as Taken' when you swallow your dose.</p>
+      </div>
+
+      <div class="pillbox-header-actions">
+        <button type="button" class="btn btn-outline" onclick="speakCurrentPageRoutine()">
+          <i class="fa-solid fa-volume-high"></i> Read Schedule
+        </button>
+        <a href="{{ url_for('medications') }}" class="btn btn-outline">
+          <i class="fa-solid fa-plus"></i> Add Medicine
+        </a>
+      </div>
+    </div>
+
+    <div class="pillbox-grid">
+      {% for slot_key, slot_data in pillbox.items() %}
+      <div class="pillbox-compartment compartment-{{ slot_key|lower }}">
+        <div class="compartment-header">
+          <div class="compartment-title">
+            <span class="compartment-icon">{{ slot_data.icon }}</span>
+            <div>
+              <h3>{{ slot_data.label }}</h3>
+              <small>{{ slot_data.time_hint }}</small>
+            </div>
+          </div>
+          <span class="compartment-count">
+            {{ slot_data.doses|selectattr('status', 'equalto', 'taken')|list|length }} / {{ slot_data.doses|length }} Done
+          </span>
+        </div>
+
+        <div class="compartment-body">
+          {% if slot_data.doses %}
+            {% for item in slot_data.doses %}
+            <div class="pill-dose-card status-{{ item.status }}" id="pillCard-{{ item.log_id }}">
+              
+              <!-- Card Top: Time & Status -->
+              <div class="dose-card-top">
+                <div class="dose-time">
+                  <i class="fa-regular fa-clock"></i> <strong>{{ item.scheduled_time }}</strong>
+                </div>
+                <div class="dose-status-badge badge-{{ item.status }}">
+                  {% if item.status == 'taken' %}
+                    <i class="fa-solid fa-circle-check"></i> Taken at {{ item.logged_at }}
+                  {% elif item.status == 'skipped' %}
+                    <i class="fa-solid fa-circle-xmark"></i> Skipped
+                  {% elif item.status == 'snoozed' %}
+                    <i class="fa-solid fa-bell"></i> Snoozed (30m)
+                  {% else %}
+                    <i class="fa-solid fa-hourglass-half"></i> Pending
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- Medicine Visual Identity -->
+              <div class="dose-med-info">
+                <div class="med-visual-tag">
+                  <span class="pill-shape-icon"><i class="fa-solid fa-tablets"></i></span>
+                  <span class="pill-color-badge">{{ item.color_shape }}</span>
+                </div>
+                <div class="med-details">
+                  <h4 class="med-name">{{ item.name }}</h4>
+                  <p class="med-dosage"><strong>{{ item.dosage }}</strong> ({{ item.form }})</p>
+                  {% if item.instructions %}
+                    <p class="med-instructions"><i class="fa-solid fa-circle-info"></i> {{ item.instructions }}</p>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- Stock warning if low -->
+              {% if item.stock <= 7 %}
+              <div class="stock-warning-tag">
+                <i class="fa-solid fa-triangle-exclamation"></i> Only {{ item.stock }} pills remaining in supply
+              </div>
+              {% endif %}
+
+              <!-- Action Buttons (Big & Senior-Friendly) -->
+              <div class="dose-action-row">
+                {% if item.status == 'taken' %}
+                  <div class="taken-confirmation-box">
+                    <i class="fa-solid fa-circle-check text-green"></i> Marked taken by {{ item.logged_by }}
+                    <form action="{{ url_for('log_dose', log_id=item.log_id, action='pending') }}" method="POST" style="display:inline; margin-left: 10px;">
+                      <button type="submit" class="btn-undo" title="Undo / Mark pending">Undo</button>
+                    </form>
+                  </div>
+                {% else %}
+                  <form action="{{ url_for('log_dose', log_id=item.log_id, action='taken') }}" method="POST" class="form-action-btn">
+                    <button type="submit" class="btn btn-take-dose">
+                      <i class="fa-solid fa-check"></i> <strong>Take Dose</strong>
+                    </button>
+                  </form>
+
+                  <form action="{{ url_for('log_dose', log_id=item.log_id, action='snoozed') }}" method="POST" class="form-action-btn">
+                    <button type="submit" class="btn btn-snooze-dose" title="Remind in 30 minutes">
+                      <i class="fa-regular fa-clock"></i> Snooze 30m
+                    </button>
+                  </form>
+
+                  <button type="button" class="btn btn-skip-dose" onclick="openSkipModal({{ item.log_id }}, '{{ item.name }}')">
+                    <i class="fa-solid fa-xmark"></i> Skip
+                  </button>
+                {% endif %}
+              </div>
+
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="empty-compartment">
+              <i class="fa-solid fa-bed"></i>
+              <p>No medications scheduled for {{ slot_data.label }}.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- LOWER GRID: DOCTOR APPOINTMENTS & CAREGIVER COLLABORATION FEED -->
+  <div class="dashboard-bottom-grid">
+    
+    <!-- UPCOMING APPOINTMENTS WIDGET -->
+    <div class="card-panel">
+      <div class="panel-header">
+        <h3><i class="fa-solid fa-calendar-check"></i> Upcoming Doctor Visits</h3>
+        <a href="{{ url_for('appointments') }}" class="btn-link">View All &rarr;</a>
+      </div>
+      <div class="panel-body">
+        {% if upcoming_appts %}
+          {% for appt in upcoming_appts %}
+          <div class="appointment-summary-item">
+            <div class="appt-date-block">
+              <span class="appt-month">{{ appt.appointment_date[5:7] }}</span>
+              <span class="appt-day">{{ appt.appointment_date[8:10] }}</span>
+            </div>
+            <div class="appt-details-block" style="flex:1;">
+              <h4>Dr. {{ appt.doctor_name }} <span class="badge-specialty">{{ appt.specialty }}</span></h4>
+              <p class="appt-location"><i class="fa-solid fa-location-dot"></i> {{ appt.clinic_name or 'Clinic' }} at {{ appt.appointment_time }}</p>
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px;">
+                <div class="appt-transport-flag">
+                  <i class="fa-solid fa-car"></i> {{ appt.transport_status }}
+                </div>
+                <a href="https://www.uber.com/in/en/" target="_blank" class="btn-uber-mini" title="Book ride to doctor visit">
+                  <i class="fa-brands fa-uber"></i> Get Ride (Uber)
+                </a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted text-center" style="padding: 20px 0;">No appointments coming up in the next 14 days.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- CAREGIVER COLLABORATION NOTES -->
+    <div class="card-panel">
+      <div class="panel-header">
+        <h3><i class="fa-solid fa-clipboard-user"></i> Care Circle Handoff Feed</h3>
+        <a href="{{ url_for('caregiver') }}" class="btn-link">Open Hub &rarr;</a>
+      </div>
+      <div class="panel-body">
+        {% if recent_notes %}
+          <div class="notes-timeline">
+            {% for note in recent_notes %}
+            <div class="timeline-note-item">
+              <div class="note-meta">
+                <strong><i class="fa-solid fa-user-pen"></i> {{ note.author_name }}</strong>
+                <span class="badge-category">{{ note.category }}</span>
+                <span class="note-date">{{ note.created_at.strftime('%b %d, %H:%M') }}</span>
+              </div>
+              <p class="note-text">{{ note.content }}</p>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted text-center" style="padding: 20px 0;">No caregiver notes posted yet today.</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- SKIP DOSE MODAL -->
+<div class="modal-backdrop" id="skipModal" style="display:none;">
+  <div class="modal-card animate-scale-up">
+    <div class="modal-header">
+      <h3>Skip Dose: <span id="skipMedName"></span></h3>
+      <button class="close-btn" onclick="closeSkipModal()">&times;</button>
+    </div>
+    <form id="skipForm" method="POST">
+      <div class="form-group">
+        <label>Reason for Skipping (Optional):</label>
+        <select name="notes" class="form-control">
+          <option value="Felt nauseous / stomach upset">Felt nauseous / stomach upset</option>
+          <option value="Doctor advised temporary pause">Doctor advised temporary pause</option>
+          <option value="Ran out of pills">Ran out of pills</option>
+          <option value="Felt fine / forgot until late">Felt fine / forgot until late</option>
+          <option value="Other reason">Other reason</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeSkipModal()">Cancel</button>
+        <button type="submit" class="btn btn-danger">Confirm Skip</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openSkipModal(logId, medName) {
+    document.getElementById('skipMedName').innerText = medName;
+    document.getElementById('skipForm').action = "/dose-action/" + logId + "/skipped";
+    document.getElementById('skipModal').style.display = 'flex';
+  }
+
+  function closeSkipModal() {
+    document.getElementById('skipModal').style.display = 'none';
+  }
+
+  // Set greeting according to local time
+  document.addEventListener('DOMContentLoaded', () => {
+    const hour = new Date().getHours();
+    const greetElem = document.getElementById('greetingTime');
+    if (greetElem) {
+      if (hour < 12) greetElem.innerText = "Good morning,";
+      else if (hour < 18) greetElem.innerText = "Good afternoon,";
+      else greetElem.innerText = "Good evening,";
+    }
+  });
+</script>
+{% endblock %}

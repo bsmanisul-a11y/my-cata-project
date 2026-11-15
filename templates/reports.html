@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Medical Diagnostic Reports — ElderCare Platform{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header-row">
+    <div>
+      <span class="subheading">Clinical History & Records</span>
+      <h1 class="page-title"><i class="fa-solid fa-folder-open text-blue"></i> Medical Reports & Doctor Notes</h1>
+      <p class="text-muted">Review lab results, ECG diagnoses, prescriptions, and clinical notes uploaded by your doctors.</p>
+    </div>
+  </div>
+
+  {% if reports %}
+    <div class="reports-grid">
+      {% for rep in reports %}
+      <div class="report-card animate-scale-up">
+        
+        <div class="report-card-header">
+          <div>
+            <span class="badge-tag tag-blue">{{ rep.report_type }}</span>
+            <h3 class="report-card-title">{{ rep.title }}</h3>
+            <span class="text-muted text-sm"><i class="fa-solid fa-user-doctor"></i> {{ rep.doctor_name }} &bull; {{ rep.report_date }}</span>
+          </div>
+          <div class="report-icon-box">
+            {% if rep.report_type == 'ECG' %}
+              <i class="fa-solid fa-heart-pulse text-red"></i>
+            {% elif rep.report_type == 'Lab Test' %}
+              <i class="fa-solid fa-vial-virus text-purple"></i>
+            {% elif rep.report_type == 'Prescription' %}
+              <i class="fa-solid fa-prescription text-green"></i>
+            {% else %}
+              <i class="fa-solid fa-file-medical text-blue"></i>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="report-card-body">
+          <div class="report-section-box">
+            <strong><i class="fa-solid fa-microscope text-blue"></i> Diagnostic Findings:</strong>
+            <p>{{ rep.summary_findings }}</p>
+          </div>
+
+          {% if rep.doctor_recommendations %}
+          <div class="report-section-box" style="background: #f0fdf4; border-left: 3px solid #10b981;">
+            <strong style="color: #065f46;"><i class="fa-solid fa-clipboard-check"></i> Doctor's Advice & Treatment Plan:</strong>
+            <p style="color: #064e3b;">{{ rep.doctor_recommendations }}</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="report-card-footer">
+          {% if rep.file_name %}
+            <a href="{{ url_for('download_report', filename=rep.file_name) }}" class="btn btn-primary" target="_blank">
+              <i class="fa-solid fa-file-pdf"></i> Download Official Document
+            </a>
+          {% else %}
+            <span class="text-muted text-sm"><i class="fa-solid fa-check"></i> Verified Digital Summary</span>
+          {% endif %}
+          <button type="button" class="btn btn-outline" onclick="window.print()">
+            <i class="fa-solid fa-print"></i> Print
+          </button>
+        </div>
+
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state-card">
+      <i class="fa-regular fa-folder-open fa-3x text-muted"></i>
+      <h3>No Medical Reports Uploaded Yet</h3>
+      <p>Reports and laboratory results uploaded by your attending physician will appear here automatically.</p>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
